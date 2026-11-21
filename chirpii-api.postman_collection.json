@@ -1,0 +1,3898 @@
+{
+  "info": {
+    "name": "Chirpii API",
+    "description": "Complete Chirpii API collection.\n\n▶ TEST ORDER:\n1. Auth → Send OTP\n2. Auth → Verify OTP  (auto-saves authToken)\n3. Languages → Get All Content Languages  (auto-saves languageId)\n4. User → Save Content Language Selection\n5. Home → Trending  (auto-saves contentId)\n6. Trailers → List Trailers  (auto-saves trailerId)\n7. Content & Episodes → List Episodes  (auto-saves episodeId)\n8. Then test any other request freely\n\n⚠ All IDs auto-save from real DB responses via test scripts.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://chirpii.vercel.app/",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string",
+      "description": "Auto-set by Verify OTP"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string",
+      "description": "Admin Bearer token"
+    },
+    {
+      "key": "contentId",
+      "value": "",
+      "type": "string",
+      "description": "Auto-set by Trending / Home Feed"
+    },
+    {
+      "key": "episodeId",
+      "value": "",
+      "type": "string",
+      "description": "Auto-set by List Episodes"
+    },
+    {
+      "key": "trailerId",
+      "value": "",
+      "type": "string",
+      "description": "Auto-set by List Trailers"
+    },
+    {
+      "key": "bannerId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "seriesId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "seasonId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminEpisodeId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "comingSoonId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "genreSlug",
+      "value": "",
+      "type": "string",
+      "description": "Auto-set by List All Genres"
+    },
+    {
+      "key": "languageId",
+      "value": "",
+      "type": "string",
+      "description": "Auto-set by Get All Content Languages"
+    },
+    {
+      "key": "searchHistoryId",
+      "value": "",
+      "type": "string",
+      "description": "Auto-set by Get Search History"
+    },
+    {
+      "key": "planId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "razorpayOrderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "transactionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "notificationId",
+      "value": "",
+      "type": "string",
+      "description": "Auto-set by List Notifications"
+    }
+  ],
+  "item": [
+    {
+      "name": "📦 Phase 1 — Login & Language Setup",
+      "description": "All APIs the frontend developer needs for Phase 1.\n\nFlow:\n1. Send OTP\n2. Verify OTP  → check hasSelectedLanguages\n   • false → show language picker (steps 3–4)\n   • true  → go straight to Home\n3. Get All Content Languages  → display language tiles\n4. Save Content Language Selection  → user picks languages\n5. Check Content Language Selection  → confirm & navigate to Home",
+      "item": [
+        {
+          "name": "1. Send OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('success is true', () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"9876543210\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/send-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "send-otp"
+              ]
+            },
+            "description": "Step 1 — Send OTP to the user's phone.\n\nChange the phone number to match your test number."
+          }
+        },
+        {
+          "name": "2. Verify OTP  ✅ auto-saves token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('token received', () => pm.expect(res.token).to.be.a('string'));",
+                  "if (res.token) {",
+                  "  pm.collectionVariables.set('authToken', res.token);",
+                  "  console.log('✅ authToken saved');",
+                  "}",
+                  "pm.test('hasSelectedLanguages present', () => pm.expect(res).to.have.property('hasSelectedLanguages'));",
+                  "console.log('isNewUser:', res.isNewUser);",
+                  "console.log('hasSelectedLanguages:', res.hasSelectedLanguages);",
+                  "if (res.hasSelectedLanguages === false) {",
+                  "  console.log('👉 Route user to language selection screen');",
+                  "} else {",
+                  "  console.log('👉 Route user to Home');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"9876543210\",\n  \"otp\": \"1234\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "verify-otp"
+              ]
+            },
+            "description": "Step 2 — Verify OTP and get JWT token.\n\nTest script:\n• Saves token to {{authToken}} automatically\n• Logs hasSelectedLanguages to the console\n\nResponse fields:\n• token — Bearer token for all auth'd requests\n• isNewUser — true on first login\n• hasSelectedLanguages:\n    false → show language picker (run steps 3–4)\n    true  → go directly to Home"
+          }
+        },
+        {
+          "name": "3. Get All Content Languages  ✅ auto-saves languageId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('languages array present', () => pm.expect(res.languages).to.be.an('array'));",
+                  "if (res.languages && res.languages.length > 0) {",
+                  "  pm.collectionVariables.set('languageId', res.languages[0]._id);",
+                  "  console.log('✅ languageId saved (first):', res.languages[0]._id, '(' + res.languages[0].englishName + ')');",
+                  "  console.log('All languages:');",
+                  "  res.languages.forEach(l => console.log(' •', l.englishName, '/', l.nativeName, '— id:', l._id));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/languages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "languages"
+              ]
+            },
+            "description": "Step 3 — Fetch all available content languages to display on the language picker screen.\n\nNo auth required.\n\nEach language object:\n• _id        — pass this in languageIds when saving the user's selection\n• code       — short code, e.g. 'ml'\n• englishName — e.g. 'Malayalam'\n• nativeName  — e.g. 'മലയാളം'\n• imageUrl   — flag / icon URL\n\nTest script saves the first language's _id to {{languageId}}.\nTo select multiple, copy the IDs from the console log into step 4."
+          }
+        },
+        {
+          "name": "4. Save Content Language Selection",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('success true', () => pm.expect(pm.response.json().success).to.be.true);",
+                  "console.log('✅ Languages saved. Now run step 5 to confirm, or go to Home.');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"languageIds\": [\"{{languageId}}\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/user/content-languages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "content-languages"
+              ]
+            },
+            "description": "Step 4 — Save the languages the user selected on the picker screen.\n\n• {{languageId}} is auto-filled from step 3\n• To select multiple languages edit the array:\n  [\"<id1>\", \"<id2>\", \"<id3>\"]\n• All IDs must be valid _id values from GET /api/languages"
+          }
+        },
+        {
+          "name": "5. Check Content Language Selection",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('hasSelected present', () => pm.expect(res).to.have.property('hasSelected'));",
+                  "console.log('hasSelected:', res.hasSelected);",
+                  "if (res.languages && res.languages.length > 0) {",
+                  "  console.log('Selected languages:', res.languages.map(l => l.englishName + ' (' + l.nativeName + ')').join(', '));",
+                  "}",
+                  "if (res.hasSelected) {",
+                  "  console.log('✅ Languages confirmed. Route user to Home.');",
+                  "} else {",
+                  "  console.log('⚠ No languages selected yet. Show language picker.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/content-languages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "content-languages"
+              ]
+            },
+            "description": "Step 5 — Verify the user's language selection was saved.\n\nAlso used on app launch (after Verify OTP) as an alternative check.\n\nResponse:\n• hasSelected: true  → navigate to Home\n• hasSelected: false → show language picker\n• languages: array of selected language objects with full details"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔐 Auth",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth"
+              ]
+            },
+            "description": "Verify the Auth API is reachable."
+          }
+        },
+        {
+          "name": "Send OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('success is true', () => {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.success).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"9876543210\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/send-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "send-otp"
+              ]
+            },
+            "description": "Sends OTP to the given 10-digit number.\nChange the phone number to match a real number in your DB / Twilio test credentials."
+          }
+        },
+        {
+          "name": "Verify OTP  ✅ auto-saves token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "if (res.token) {",
+                  "  pm.collectionVariables.set('authToken', res.token);",
+                  "  console.log('✅ authToken saved');",
+                  "}",
+                  "pm.test('token received', () => pm.expect(res.token).to.be.a('string'));",
+                  "pm.test('hasSelectedLanguages present', () => pm.expect(res).to.have.property('hasSelectedLanguages'));",
+                  "console.log('isNewUser:', res.isNewUser);",
+                  "console.log('hasSelectedLanguages:', res.hasSelectedLanguages);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"9876543210\",\n  \"otp\": \"1234\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "verify-otp"
+              ]
+            },
+            "description": "Verifies OTP and returns JWT.\n\nTest script auto-saves the token to {{authToken}}.\n\nResponse fields:\n• token — use as Bearer in all auth'd requests\n• isNewUser — true on first login\n• hasSelectedLanguages — false = show language picker, true = go to home"
+          }
+        },
+        {
+          "name": "6. Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('success true', () => pm.expect(pm.response.json().success).to.be.true);",
+                  "pm.collectionVariables.set('authToken', '');",
+                  "console.log('✅ Logged out — authToken cleared');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Logout the current user. JWT is stateless so the client must discard the token. Test script auto-clears {{authToken}}."
+          }
+        }
+      ]
+    },
+    {
+      "name": "📤 Upload",
+      "item": [
+        {
+          "name": "Upload Image",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('url present', () => pm.expect(res.url).to.be.a('string'));",
+                  "if (res.url) console.log('✅ Uploaded URL:', res.url);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "",
+                  "description": "Select any image file (jpeg, png etc.)"
+                },
+                {
+                  "key": "folder",
+                  "value": "uploads",
+                  "type": "text",
+                  "description": "S3 folder name — e.g. uploads, languages, banners, profiles"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "upload"
+              ]
+            },
+            "description": "Upload any image to S3.\n\nForm fields:\n• file — the image file to upload\n• folder (optional) — S3 folder prefix, defaults to 'uploads'\n\nReturns:\n• url — public S3 URL of the uploaded file\n• key — S3 object key"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🌐 Languages",
+      "item": [
+        {
+          "name": "Get All Content Languages  ✅ auto-saves languageId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('languages array present', () => pm.expect(res.languages).to.be.an('array'));",
+                  "if (res.languages && res.languages.length > 0) {",
+                  "  pm.collectionVariables.set('languageId', res.languages[0]._id);",
+                  "  console.log('✅ languageId saved:', res.languages[0]._id, '(' + res.languages[0].englishName + ')');",
+                  "  console.log('All languages:', res.languages.map(l => l.englishName + ' (' + l._id + ')').join(', '));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/languages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "languages"
+              ]
+            },
+            "description": "Returns all active content languages.\n\nEach language has:\n• _id — pass this in languageIds when saving user selection\n• code — short code e.g. 'ml'\n• englishName — e.g. 'Malayalam'\n• nativeName — e.g. 'മലയാളം'\n• imageUrl — flag / icon\n\nTest script saves the first language's _id to {{languageId}}."
+          }
+        }
+      ]
+    },
+    {
+      "name": "👤 User",
+      "item": [
+        {
+          "name": "Get Current User (me)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('user object present', () => {",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.user).to.be.an('object');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "me"
+              ]
+            },
+            "description": "Returns the decoded JWT payload (userId, phone, iat, exp)."
+          }
+        },
+        {
+          "name": "Get Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('profile fields present', () => {",
+                  "  const u = pm.response.json().user;",
+                  "  pm.expect(u).to.have.all.keys('_id','phone','isPremium');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "profile"
+              ]
+            },
+            "description": "Returns full user profile including name, yearOfBirth, gender, appLanguage, contentLanguages, isPremium."
+          }
+        },
+        {
+          "name": "Update Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('success true', () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Arjun Menon\",\n  \"yearOfBirth\": 1998,\n  \"gender\": \"male\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/user/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "profile"
+              ]
+            },
+            "description": "Update name, yearOfBirth, and/or gender.\ngender must be one of: male | female | prefer_not_to_say"
+          }
+        },
+        {
+          "name": "Set App Language",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('success true', () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"language\": \"ml\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/user/app-language",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "app-language"
+              ]
+            },
+            "description": "Sets the app UI language.\nValid values: en | ml | te | hi | ta"
+          }
+        },
+        {
+          "name": "Check Content Language Selection",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('hasSelected present', () => pm.expect(res).to.have.property('hasSelected'));",
+                  "console.log('hasSelected:', res.hasSelected);",
+                  "if (res.languages) console.log('Selected:', res.languages.map(l => l.englishName).join(', '));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/content-languages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "content-languages"
+              ]
+            },
+            "description": "Check if the user has picked content languages yet.\n\nResponse:\n• hasSelected: false → show language selection screen\n• hasSelected: true → proceed to home\n• languages: array of selected language objects"
+          }
+        },
+        {
+          "name": "Save Content Language Selection",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('success true', () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"languageIds\": [\"{{languageId}}\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/user/content-languages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "content-languages"
+              ]
+            },
+            "description": "Save the user's content language preferences.\n\n• Run 'Get All Content Languages' first — {{languageId}} is auto-filled.\n• To select multiple languages, add more IDs to the array:\n  [\"<id1>\", \"<id2>\", \"<id3>\"]"
+          }
+        },
+        {
+          "name": "Update App UI Language (Settings)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('success true', () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"appLanguage\": \"en\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/user/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "settings"
+              ]
+            },
+            "description": "Update the app UI language only.\nValid values: en | ml | te | hi | ta\n\nTo update content language preferences use POST /api/user/content-languages."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔔 User Notifications",
+      "description": "User notification management APIs (List with pagination, Read single, Read All, Clear single, Clear All).",
+      "item": [
+        {
+          "name": "1. List Notifications (with pagination) ✅ auto-saves notificationId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('notifications array present', () => pm.expect(res.notifications).to.be.an('array'));",
+                  "if (res.notifications && res.notifications.length > 0) {",
+                  "  pm.collectionVariables.set('notificationId', res.notifications[0]._id || res.notifications[0].id);",
+                  "  console.log('✅ notificationId saved:', res.notifications[0]._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/notifications?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Fetch user's in-app & push notifications with pagination (`page`, `limit`) and unread count."
+          }
+        },
+        {
+          "name": "2. Read Notification (Single)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/notifications/{{notificationId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "notifications",
+                "{{notificationId}}",
+                "read"
+              ]
+            },
+            "description": "Mark a single notification as read (`isRead: true`, `readAt`)."
+          }
+        },
+        {
+          "name": "3. Read All Notifications",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/notifications/read-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "notifications",
+                "read-all"
+              ]
+            },
+            "description": "Mark all unread notifications for the user as read."
+          }
+        },
+        {
+          "name": "4. Clear Notification (Single)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/notifications/{{notificationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "notifications",
+                "{{notificationId}}"
+              ]
+            },
+            "description": "Clear / remove a single notification for the user."
+          }
+        },
+        {
+          "name": "5. Clear All Notifications",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/notifications/clear-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "notifications",
+                "clear-all"
+              ]
+            },
+            "description": "Clear / remove all notifications for the user."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏠 Home",
+      "item": [
+        {
+          "name": "Home Feed (full)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('data sections present', () => {",
+                  "  pm.expect(res.data).to.have.all.keys('banners','trending','blockbusters','series','continueWatching','forYou','genres');",
+                  "});",
+                  "if (res.data && res.data.trending && res.data.trending.length > 0) {",
+                  "  pm.collectionVariables.set('contentId', res.data.trending[0]._id);",
+                  "  console.log('✅ contentId saved from trending:', res.data.trending[0]._id, '(' + res.data.trending[0].title + ')');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/home",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "home"
+              ]
+            },
+            "description": "Returns banners, trending, blockbusters, series, continueWatching, forYou, and genres in a single call.\nTest script auto-saves the first trending contentId to {{contentId}}."
+          }
+        },
+        {
+          "name": "Banners",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.length > 0) {",
+                  "  pm.collectionVariables.set('contentId', res.data[0]._id);",
+                  "  console.log('✅ contentId saved from banner:', res.data[0]._id, '(' + res.data[0].title + ')');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/home/banner",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "home",
+                "banner"
+              ]
+            },
+            "description": "Send the logged-in user's Bearer token to resolve saved content-language preferences. Without a valid token or saved active content language, banners are empty. After changing language selection, refetch this endpoint with the same user token.\nTest script saves the first banner's contentId to {{contentId}}."
+          }
+        },
+        {
+          "name": "Trending  ✅ auto-saves contentId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('data is array', () => pm.expect(res.data).to.be.an('array'));",
+                  "if (res.data && res.data.length > 0) {",
+                  "  pm.collectionVariables.set('contentId', res.data[0]._id);",
+                  "  console.log('✅ contentId saved:', res.data[0]._id, '(' + res.data[0].title + ')');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/home/trending?limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "home",
+                "trending"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Max 20"
+                }
+              ]
+            },
+            "description": "Get trending content. No auth required. Max limit: 20.\nTest script saves the first result's _id to {{contentId}}."
+          }
+        },
+        {
+          "name": "Series",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('success true', () => pm.expect(res.success).to.be.true);",
+                  "pm.test('data array present', () => pm.expect(res.data).to.be.an('array'));",
+                  "if (res.data && res.data.length > 0) {",
+                  "  pm.collectionVariables.set('seriesId', res.data[0]._id);",
+                  "  console.log('seriesId saved:', res.data[0]._id, '(' + res.data[0].title + ')');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/home/series?limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "home",
+                "series"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Max 50"
+                }
+              ]
+            },
+            "description": "Get active series for the Home screen. No admin token required. Max limit: 50.\nTest script saves the first series _id to {{seriesId}}."
+          }
+        },
+        {
+          "name": "For You",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('content array present', () => pm.expect(pm.response.json().content).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/home/for-you",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "home",
+                "for-you"
+              ]
+            },
+            "description": "Personalised content based on user's content language preferences.\nWill return empty if user hasn't selected languages yet."
+          }
+        },
+        {
+          "name": "Get Continue Watching",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('items array present', () => pm.expect(pm.response.json().items).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/home/continue-watching",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "home",
+                "continue-watching"
+              ]
+            },
+            "description": "Returns the user's in-progress content list."
+          }
+        },
+        {
+          "name": "Genres",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('genres array present', () => pm.expect(res.genres).to.be.an('array'));",
+                  "if (res.genres && res.genres.length > 0) {",
+                  "  pm.collectionVariables.set('genreSlug', res.genres[0].slug);",
+                  "  console.log('✅ genreSlug saved:', res.genres[0].slug);",
+                  "  console.log('All genres:', res.genres.map(g => g.name).join(', '));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/genres",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "genres"
+              ]
+            },
+            "description": "Fetch all active genres for rendering the genre tabs on the Home screen (For You, Drama, Romance, Thriller, Comedy, Horror etc.).\n\nNo auth required.\nTest script saves the first genre slug to {{genreSlug}}."
+          }
+        },
+        {
+          "name": "Update Continue Watching",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('success true', () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contentId\": \"{{contentId}}\",\n  \"episodeId\": \"{{episodeId}}\",\n  \"watchedSeconds\": 300,\n  \"totalSeconds\": 2400\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/home/continue-watching",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "home",
+                "continue-watching"
+              ]
+            },
+            "description": "Save / update continue watching progress.\n• progress: 0.0–1.0 (e.g. 0.45 = 45% through)\n• duration: total content duration in seconds\n• episodeId: optional — omit for movies"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🎭 Genres",
+      "item": [
+        {
+          "name": "List All Genres  ✅ auto-saves genreSlug",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('genres array present', () => pm.expect(res.genres).to.be.an('array'));",
+                  "if (res.genres && res.genres.length > 0) {",
+                  "  pm.collectionVariables.set('genreSlug', res.genres[0].slug);",
+                  "  console.log('✅ genreSlug saved:', res.genres[0].slug, '(' + res.genres[0].name + ')');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/genres",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "genres"
+              ]
+            },
+            "description": "Returns all genres. No auth required.\nTest script saves the first genre's slug to {{genreSlug}}."
+          }
+        },
+        {
+          "name": "Content by Genre",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('content array present', () => pm.expect(res.content).to.be.an('array'));",
+                  "if (res.content && res.content.length > 0) {",
+                  "  pm.collectionVariables.set('contentId', res.content[0]._id);",
+                  "  console.log('✅ contentId updated from genre:', res.content[0]._id, '(' + res.content[0].title + ')');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/genres/{{genreSlug}}?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "genres",
+                "{{genreSlug}}"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Max 50"
+                }
+              ]
+            },
+            "description": "Paginated content for the genre in {{genreSlug}}.\nRun 'List All Genres' first to auto-fill the slug."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🎬 Series, Seasons & Episodes",
+      "item": [
+        {
+          "name": "Get Series Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/content/{{contentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "content",
+                "{{contentId}}"
+              ]
+            },
+            "description": "Gets the metadata of a single series/content item matching contentId. For series, response.content includes seasonStatus and a lightweight seasons array with per-season status and episodeCount."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('content present', () => pm.expect(res.content).to.be.an('object'));",
+                  "pm.test('season status present for series', () => {",
+                  "  if (res.content && res.content.type === 'series') {",
+                  "    pm.expect(res.content.seasonStatus).to.be.an('object');",
+                  "    pm.expect(res.content.seasons).to.be.an('array');",
+                  "    pm.expect(res.content.seasonStatus.totalSeasons).to.eql(res.content.totalSeasons);",
+                  "  }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Seasons  ✅ auto-saves seasonId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/content/{{contentId}}/seasons",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "content",
+                "{{contentId}}",
+                "seasons"
+              ]
+            },
+            "description": "Gets seasons for the given contentId, including episodes inside each season.\n• Only seasons that have episodes are returned\n• Test script saves the first season's _id to {{seasonId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('seasons array present', () => pm.expect(res.seasons).to.be.an('array'));",
+                  "pm.test('each returned season has episodes', () => {",
+                  "  (res.seasons || []).forEach((season) => {",
+                  "    pm.expect(season.episodes).to.be.an('array').that.is.not.empty;",
+                  "  });",
+                  "});",
+                  "if (res.seasons && res.seasons.length > 0) {",
+                  "  pm.collectionVariables.set('seasonId', res.seasons[0]._id);",
+                  "  console.log('✅ seasonId saved:', res.seasons[0]._id, '(Season ' + res.seasons[0].seasonNumber + ')');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Episodes  ✅ auto-saves episodeId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/content/{{contentId}}/seasons/{{seasonId}}/episodes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "content",
+                "{{contentId}}",
+                "seasons",
+                "{{seasonId}}",
+                "episodes"
+              ]
+            },
+            "description": "Gets the list of episodes for the given contentId and seasonId.\n• Test script saves the first episode's _id to {{episodeId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('episodes array present', () => pm.expect(res.episodes).to.be.an('array'));",
+                  "if (res.episodes && res.episodes.length > 0) {",
+                  "  pm.collectionVariables.set('episodeId', res.episodes[0]._id);",
+                  "  console.log('✅ episodeId saved:', res.episodes[0]._id, '(Ep ' + res.episodes[0].episodeNumber + ': ' + res.episodes[0].title + ')');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Episode Detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/content/{{contentId}}/episodes/{{episodeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "content",
+                "{{contentId}}",
+                "episodes",
+                "{{episodeId}}"
+              ]
+            },
+            "description": "Gets details for a specific episode by episodeId."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('hasAccess field present', () => pm.expect(res).to.have.property('hasAccess'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Episode Stream URL",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quality\": \"HD\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/content/{{contentId}}/episodes/{{episodeId}}/stream",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "content",
+                "{{contentId}}",
+                "episodes",
+                "{{episodeId}}",
+                "stream"
+              ]
+            },
+            "description": "Gets signed S3 stream URL for the episode."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "if (res.url) console.log('Stream URL:', res.url);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🔔 Coming Soon",
+      "item": [
+        {
+          "name": "List Coming Soon Items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/coming-soon",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "coming-soon"
+              ]
+            },
+            "description": "Returns all active coming soon titles (movies/series) for the homepage/slider."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('comingSoon array present', () => pm.expect(res.comingSoon).to.be.an('array'));",
+                  "pm.test('notifyUsers is hidden', () => {",
+                  "  (pm.response.json().comingSoon || []).forEach((item) => pm.expect(item).to.not.have.property('notifyUsers'));",
+                  "});",
+                  "if (res.comingSoon && res.comingSoon.length > 0) {",
+                  "  pm.collectionVariables.set('comingSoonId', res.comingSoon[0]._id);",
+                  "  console.log('✅ comingSoonId saved:', res.comingSoon[0]._id, '(' + res.comingSoon[0].title + ')');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Notify Me (Subscribe)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/coming-soon/{{comingSoonId}}/notify-me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "coming-soon",
+                "{{comingSoonId}}",
+                "notify-me"
+              ]
+            },
+            "description": "Register the authenticated user to receive notifications when this coming soon title is released."
+          }
+        },
+        {
+          "name": "Cancel Notification (Unsubscribe)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/coming-soon/{{comingSoonId}}/notify-me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "coming-soon",
+                "{{comingSoonId}}",
+                "notify-me"
+              ]
+            },
+            "description": "Unregister the authenticated user from notifications for this coming soon title."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🎞 Trailers",
+      "item": [
+        {
+          "name": "List Trailers  ✅ auto-saves trailerId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('trailers array present', () => pm.expect(res.trailers).to.be.an('array'));",
+                  "if (res.trailers && res.trailers.length > 0) {",
+                  "  pm.collectionVariables.set('trailerId', res.trailers[0]._id);",
+                  "  console.log('✅ trailerId saved:', res.trailers[0]._id, '(' + res.trailers[0].title + ')');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/trailers?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trailers"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Max 50"
+                }
+              ]
+            },
+            "description": "Paginated list of trailers. No auth required.\nTest script saves the first trailer's _id to {{trailerId}}."
+          }
+        },
+        {
+          "name": "Get Trailer Stream URL",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "if (res.url) console.log('Trailer stream URL received, expires in:', res.expiresIn, 'seconds');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/trailers/{{trailerId}}/stream",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trailers",
+                "{{trailerId}}",
+                "stream"
+              ]
+            },
+            "description": "Get a signed S3 stream URL for the trailer in {{trailerId}}.\nRun 'List Trailers' first to auto-fill the ID."
+          }
+        },
+        {
+          "name": "Like Trailer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('likesCount present', () => pm.expect(res).to.have.property('likesCount'));",
+                  "console.log('Updated likesCount:', res.likesCount);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/trailers/{{trailerId}}/like",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trailers",
+                "{{trailerId}}",
+                "like"
+              ]
+            },
+            "description": "Toggle like on a trailer. Returns the updated total likesCount."
+          }
+        }
+      ]
+    },
+    {
+      "name": "📋 My List",
+      "item": [
+        {
+          "name": "Get My List",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('items array present', () => pm.expect(res.items).to.be.an('array'));",
+                  "console.log('My List total:', res.total);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/my-list",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "my-list"
+              ]
+            },
+            "description": "Returns all content items saved to the user's watchlist."
+          }
+        },
+        {
+          "name": "Add to My List",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('success true', () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contentId\": \"{{contentId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/user/my-list",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "my-list"
+              ]
+            },
+            "description": "Add a content item to the watchlist.\n{{contentId}} is auto-filled after running Trending or Banners."
+          }
+        },
+        {
+          "name": "Remove from My List",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('success true', () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/my-list?contentId={{contentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "my-list"
+              ],
+              "query": [
+                {
+                  "key": "contentId",
+                  "value": "{{contentId}}"
+                }
+              ]
+            },
+            "description": "Remove a content item from the watchlist by contentId."
+          }
+        },
+        {
+          "name": "Add Multiple to My List",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contentIds\": [\n    \"{{contentId}}\",\n    \"CONTENT_ID_2\",\n    \"CONTENT_ID_3\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/user/my-list",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "my-list"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Remove Multiple from My List",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/my-list?contentIds={{contentId}},CONTENT_ID_2,CONTENT_ID_3",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "my-list"
+              ],
+              "query": [
+                {
+                  "key": "contentIds",
+                  "value": "{{contentId}},CONTENT_ID_2,CONTENT_ID_3"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Check My List Status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('success true', () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/my-list/check?contentId={{contentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "my-list",
+                "check"
+              ],
+              "query": [
+                {
+                  "key": "contentId",
+                  "value": "{{contentId}}"
+                }
+              ]
+            },
+            "description": "Check if a content item is in the user's watchlist."
+          }
+        },
+        {
+          "name": "Toggle My List Status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('success true', () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contentId\": \"{{contentId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/user/my-list/toggle",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "my-list",
+                "toggle"
+              ]
+            },
+            "description": "Toggle a content item in/out of the user's watchlist."
+          }
+        }
+      ]
+    },
+    {
+      "name": "📺 Watch History",
+      "item": [
+        {
+          "name": "Get Watch History",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('history array present', () => pm.expect(res.history).to.be.an('array'));",
+                  "console.log('Watch history items:', res.history.length, '/ Total pages:', res.totalPages);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/watch-history?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "watch-history"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Max 50"
+                }
+              ]
+            },
+            "description": "Paginated watch history. Max limit: 50."
+          }
+        },
+        {
+          "name": "Save to Watch History",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('success true', () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contentId\": \"{{contentId}}\",\n  \"episodeId\": \"{{episodeId}}\",\n  \"watchedSeconds\": 720,\n  \"totalSeconds\": 2400\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/user/watch-history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "watch-history"
+              ]
+            },
+            "description": "Record a watch event.\n• watchedSeconds: how far the user got\n• totalSeconds: full episode/movie length (must be > 0)\n• episodeId: optional — omit for movies"
+          }
+        },
+        {
+          "name": "Delete Watch History (single content)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('success true', () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/watch-history?contentId={{contentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "watch-history"
+              ],
+              "query": [
+                {
+                  "key": "contentId",
+                  "value": "{{contentId}}"
+                }
+              ]
+            },
+            "description": "Remove watch history for one specific content item."
+          }
+        },
+        {
+          "name": "Clear Entire Watch History",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('success true', () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/watch-history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "watch-history"
+              ]
+            },
+            "description": "⚠ Deletes the user's entire watch history. No contentId param = clear all."
+          }
+        }
+      ]
+    },
+    {
+      "name": "⏱ Progress",
+      "item": [
+        {
+          "name": "Get Progress (all content)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('progress array present', () => pm.expect(pm.response.json().progress).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/progress",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "progress"
+              ]
+            },
+            "description": "Get watch progress across all content."
+          }
+        },
+        {
+          "name": "Get Progress (by contentId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('progress array present', () => pm.expect(pm.response.json().progress).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/progress?contentId={{contentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "progress"
+              ],
+              "query": [
+                {
+                  "key": "contentId",
+                  "value": "{{contentId}}"
+                }
+              ]
+            },
+            "description": "Filter progress to a specific content item."
+          }
+        },
+        {
+          "name": "Save Progress",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contentId\": \"{{contentId}}\",\n  \"episodeId\": \"{{episodeId}}\",\n  \"watchedSeconds\": 300,\n  \"totalSeconds\": 2400\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/user/progress",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "progress"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔍 Search",
+      "item": [
+        {
+          "name": "Search Content",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('results array present', () => pm.expect(res.results).to.be.an('array'));",
+                  "console.log('Results found:', res.results.length);",
+                  "if (res.results.length > 0) {",
+                  "  pm.collectionVariables.set('contentId', res.results[0]._id);",
+                  "  console.log('✅ contentId updated from search:', res.results[0]._id, '(' + res.results[0].title + ')');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/search?q=love",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "love",
+                  "description": "Change to any title keyword"
+                }
+              ]
+            },
+            "description": "Search content by title keyword.\nTest script saves first result's _id to {{contentId}}.\n\nIf q is empty → returns recent + trending searches instead."
+          }
+        },
+        {
+          "name": "Search Suggestions (empty state)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('recent and trending present', () => {",
+                  "  pm.expect(res).to.have.property('recent');",
+                  "  pm.expect(res).to.have.property('trending');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/search",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "search"
+              ]
+            },
+            "description": "Called when search input is empty.\nReturns user's recent searches + global trending searches."
+          }
+        },
+        {
+          "name": "Get Search History  ✅ auto-saves searchHistoryId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('history array present', () => pm.expect(res.history).to.be.an('array'));",
+                  "if (res.history && res.history.length > 0) {",
+                  "  pm.collectionVariables.set('searchHistoryId', res.history[0]._id);",
+                  "  console.log('✅ searchHistoryId saved:', res.history[0]._id, '(query: ' + res.history[0].query + ')');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/search/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "search",
+                "history"
+              ]
+            },
+            "description": "Returns the user's past search queries.\nTest script saves first item's _id to {{searchHistoryId}}."
+          }
+        },
+        {
+          "name": "Delete Search History (single item)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('success true', () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/search/history?id={{searchHistoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "search",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "id",
+                  "value": "{{searchHistoryId}}",
+                  "description": "Auto-filled by Get Search History"
+                }
+              ]
+            },
+            "description": "Delete a single search history entry.\n{{searchHistoryId}} is auto-filled after running 'Get Search History'."
+          }
+        },
+        {
+          "name": "Clear All Search History",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('success true', () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/search/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "search",
+                "history"
+              ]
+            },
+            "description": "⚠ Clears the entire search history for the user."
+          }
+        },
+        {
+          "name": "Trending Searches",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('trending array present', () => pm.expect(pm.response.json().trending).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/search/trending",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "search",
+                "trending"
+              ]
+            },
+            "description": "Global trending search queries. No auth required."
+          }
+        }
+      ]
+    },
+    {
+      "name": "💳 Subscription",
+      "item": [
+        {
+          "name": "Get All Plans",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/subscription/plans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "subscription",
+                "plans"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var res = pm.response.json();",
+                  "if (res.success && res.plans && res.plans.length > 0) {",
+                  "  pm.collectionVariables.set(\"planId\", res.plans[0]._id);",
+                  "  console.log(\"planId saved:\", res.plans[0]._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validate Coupon",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"couponCode\": \"CHIRPII10\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/subscription/validate-coupon",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "subscription",
+                "validate-coupon"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": \"{{planId}}\",\n  \"couponCode\": \"CHIRPII10\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/subscription/create-order",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "subscription",
+                "create-order"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var res = pm.response.json();",
+                  "if (res.success) {",
+                  "  pm.collectionVariables.set(\"razorpayOrderId\", res.orderId);",
+                  "  pm.collectionVariables.set(\"transactionId\", res.transactionId);",
+                  "  console.log(\"orderId saved:\", res.orderId);",
+                  "  console.log(\"transactionId saved:\", res.transactionId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Payment (mock)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transactionId\": \"{{transactionId}}\",\n  \"razorpay_order_id\": \"{{razorpayOrderId}}\",\n  \"razorpay_payment_id\": \"pay_TEST123456789\",\n  \"razorpay_signature\": \"mock_signature\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/subscription/verify-payment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "subscription",
+                "verify-payment"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get My Subscription",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/subscription/my-subscription",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "subscription",
+                "my-subscription"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "⚙️ Admin API",
+      "item": [
+        {
+          "name": "Series",
+          "item": [
+            {
+              "name": "List All Series",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{adminToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/series?all=true",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "series"
+                  ],
+                  "query": [
+                    {
+                      "key": "all",
+                      "value": "true"
+                    }
+                  ]
+                },
+                "description": "Lists every active admin series. Requires admin bearer token."
+              }
+            },
+            {
+              "name": "Create Series",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"New Epic Series\",\n  \"description\": \"An incredible new drama series.\",\n  \"releaseYear\": 2026,\n  \"genres\": [\n    \"Drama\",\n    \"Action\"\n  ],\n  \"language\": [\n    \"English\"\n  ],\n  \"isTrending\": true,\n  \"isBlockbuster\": false\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/series",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "series"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Series",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"New Epic Series (Updated)\",\n  \"description\": \"An incredible new drama series with updated description.\",\n  \"releaseYear\": 2026,\n  \"genres\": [\n    \"Drama\",\n    \"Action\",\n    \"Sci-Fi\"\n  ],\n  \"language\": [\n    \"English\"\n  ],\n  \"isTrending\": true,\n  \"isBlockbuster\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/series/{{seriesId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "series",
+                    "{{seriesId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Delete Series",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/series/{{seriesId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "series",
+                    "{{seriesId}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seasons",
+          "item": [
+            {
+              "name": "List Seasons",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/series/{{seriesId}}/seasons",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "series",
+                    "{{seriesId}}",
+                    "seasons"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Season",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"seasonNumber\": 1,\n  \"title\": \"Season 1: The Beginning\",\n  \"description\": \"The initial season explaining the origin story.\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/series/{{seriesId}}/seasons",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "series",
+                    "{{seriesId}}",
+                    "seasons"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Season",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"seasonId\": \"{{seasonId}}\",\n  \"seasonNumber\": 1,\n  \"title\": \"Season 1: Origins (Updated)\",\n  \"description\": \"The updated description for season 1.\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/series/{{seriesId}}/seasons",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "series",
+                    "{{seriesId}}",
+                    "seasons"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Delete Season",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"seasonId\": \"{{seasonId}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/series/{{seriesId}}/seasons",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "series",
+                    "{{seriesId}}",
+                    "seasons"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Episodes",
+          "item": [
+            {
+              "name": "List Episodes",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/series/{{seriesId}}/seasons/{{seasonId}}/episodes?page=1&limit=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "series",
+                    "{{seriesId}}",
+                    "seasons",
+                    "{{seasonId}}",
+                    "episodes"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Episode",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"episodeNumber\": 1,\n  \"title\": \"Episode 1: Pilot\",\n  \"description\": \"The pilot episode.\",\n  \"videoUrl\": \"https://example.com/videos/pilot.mp4\",\n  \"thumbnailUrl\": \"https://example.com/thumbnails/pilot.jpg\",\n  \"duration\": 2400,\n  \"isDownloadable\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/series/{{seriesId}}/seasons/{{seasonId}}/episodes",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "series",
+                    "{{seriesId}}",
+                    "seasons",
+                    "{{seasonId}}",
+                    "episodes"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Episode",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"episodeNumber\": 1,\n  \"title\": \"Episode 1: Pilot (Updated)\",\n  \"description\": \"The updated pilot episode details.\",\n  \"videoUrl\": \"https://example.com/videos/pilot-updated.mp4\",\n  \"thumbnailUrl\": \"https://example.com/thumbnails/pilot-updated.jpg\",\n  \"duration\": 2500,\n  \"isDownloadable\": false\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/series/{{seriesId}}/seasons/{{seasonId}}/episodes/{{episodeId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "series",
+                    "{{seriesId}}",
+                    "seasons",
+                    "{{seasonId}}",
+                    "episodes",
+                    "{{episodeId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Delete Episode",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/series/{{seriesId}}/seasons/{{seasonId}}/episodes/{{episodeId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "series",
+                    "{{seriesId}}",
+                    "seasons",
+                    "{{seasonId}}",
+                    "episodes",
+                    "{{episodeId}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Coming Soon",
+          "item": [
+            {
+              "name": "List Coming Soon Items",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/coming-soon",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "coming-soon"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Add Coming Soon Item",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Next Blockbuster Movie\",\n  \"description\": \"Coming soon to screens near you.\",\n  \"posterUrl\": \"https://example.com/posters/next.jpg\",\n  \"expectedReleaseDate\": \"2026-12-25\",\n  \"isActive\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/coming-soon",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "coming-soon"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Delete Coming Soon Item",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/coming-soon/{{comingSoonId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "coming-soon",
+                    "{{comingSoonId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Trigger Coming Soon Notification",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/coming-soon/{{comingSoonId}}/notify",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "coming-soon",
+                    "{{comingSoonId}}",
+                    "notify"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "All Time Blockbusters",
+          "item": [
+            {
+              "name": "List Blockbuster Items",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/blockbusters",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "blockbusters"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Add Blockbuster Item",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/blockbusters/{{contentId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "blockbusters",
+                    "{{contentId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Remove Blockbuster Item",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/blockbusters/{{contentId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "blockbusters",
+                    "{{contentId}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Trending",
+          "item": [
+            {
+              "name": "List Trending Items",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/trending",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "trending"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Add Trending Item",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/trending/{{contentId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "trending",
+                    "{{contentId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Remove Trending Item",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/trending/{{contentId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "trending",
+                    "{{contentId}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Banners",
+          "item": [
+            {
+              "name": "List Banners",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/banners",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "banners"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Add Banner",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Epic Series Banner\",\n  \"subtitle\": \"Watch now!\",\n  \"imageUrl\": \"https://example.com/banners/epic.jpg\",\n  \"linkedContentId\": \"{{seriesId}}\",\n  \"linkedContentType\": \"series\",\n  \"order\": 1\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/banners",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "banners"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Delete Banner",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/banners/{{bannerId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "banners",
+                    "{{bannerId}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Trailers",
+          "item": [
+            {
+              "name": "List Trailers",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/trailers",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "trailers"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Add Trailer",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Official Trailer\",\n  \"description\": \"The official first trailer.\",\n  \"contentId\": \"{{seriesId}}\",\n  \"contentType\": \"series\",\n  \"videoUrl\": \"https://example.com/videos/trailer.mp4\",\n  \"thumbnailUrl\": \"https://example.com/thumbnails/trailer.jpg\",\n  \"duration\": 120\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/trailers",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "trailers"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Delete Trailer",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/trailers/{{trailerId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "trailers",
+                    "{{trailerId}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Settings",
+          "item": [
+            {
+              "name": "Get Settings",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/settings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "settings"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Save Settings",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"platformName\": \"Chirpii OTT\",\n  \"tagline\": \"Your daily entertainment dose\",\n  \"logoUrl\": \"https://example.com/logo.png\",\n  \"timezone\": \"Asia/Kolkata\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/settings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "settings"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🛠 Admin / Seed",
+      "item": [
+        {
+          "name": "Seed Languages",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/seed-languages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "seed-languages"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Seed Content",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/seed-content",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "seed-content"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Seed Episodes",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/seed-episodes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "seed-episodes"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

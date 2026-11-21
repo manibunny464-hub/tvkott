@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+:root {
+  --background: #06090e;
+  --foreground: #f7fbfd;
+  --admin-primary: #00d9ff;
+  --admin-accent: #ff1f8f;
+  --admin-warning: #ffb21f;
+  --admin-background: #06090e;
+  --admin-surface: #0c121e;
+  --admin-foreground: #f7fbfd;
+  --admin-muted: #8ca3af;
+  --admin-border: #1a2535;
+  --admin-soft: #101927;
+  --radius-sm: 8px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-outfit), var(--font-jakarta), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-outfit), sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", monospace;
+}
+
+body {
+  background: var(--admin-background);
+  color: var(--admin-foreground);
+  font-family: var(--font-outfit), var(--font-jakarta), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: -0.015em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6, .font-display, .font-heading {
+  font-family: var(--font-outfit), sans-serif;
+  letter-spacing: -0.025em;
+}
+
+.dark-admin {
+  --background: #071217;
+  --foreground: #effbff;
+  --admin-background: #071217;
+  --admin-surface: #0d2027;
+  --admin-foreground: #effbff;
+  --admin-muted: #a9c2cc;
+  --admin-border: #1f3a44;
+  --admin-soft: #102b34;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--admin-primary) 32%, transparent);
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes loader-slide {
+  0% {
+    transform: translateX(-110%);
+  }
+
+  100% {
+    transform: translateX(220%);
+  }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--admin-muted) 12%, transparent);
+}
+
+.skeleton::after {
+  animation: shimmer 1.45s infinite;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--admin-surface) 72%, transparent),
+    transparent
+  );
+  content: "";
+  inset: 0;
+  position: absolute;
+  transform: translateX(-100%);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.45s ease-out 0.08s forwards;
+}
+
+/* Custom Admin Modal Scrollbar */
+.custom-scrollbar::-webkit-scrollbar,
+.admin-modal-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track,
+.admin-modal-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb,
+.admin-modal-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--admin-border) 80%, var(--admin-muted) 20%);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover,
+.admin-modal-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--admin-primary);
+}
+
