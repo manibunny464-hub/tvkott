@@ -1,3 +1,11 @@
+# TVK OTT starter
+
+Starting codebase for TVK OTT. Full OTT implementation is pending.
+
+Read docs/TVK_STARTER.md, docs/TVK_OTT_Scope_of_Work.md and docs/TVK_OTT_Backend_Blueprint.md before implementation. Configure separate development services with .env.example.
+
+## Inherited project notes
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
 ## Getting Started

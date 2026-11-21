@@ -255,7 +255,7 @@ Admin Direct S3 Video Upload (Presigned Multipart S3 API)
 
 ```ini
 # Database Connection
-MONGODB_URI=mongodb+srv://<user>:<password>@cluster0.mongodb.net/chirpii?retryWrites=true&w=majority
+MONGODB_URI=mongodb://localhost:27017/chirpi
 
 # Authentication & Security
 JWT_SECRET=chirpii_jwt_super_secret_key_production

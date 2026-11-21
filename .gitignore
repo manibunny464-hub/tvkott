@@ -91,3 +91,6 @@ yarn-error.log*
 next-env.d.ts
 # Temporary source extracted from the supplied landing-page archive.
 /scratch/landing-import/
+
+# Local investigation files
+/scratch/
