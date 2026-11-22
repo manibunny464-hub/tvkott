@@ -5,7 +5,7 @@ import Content from '@/models/Content';
 import Season from '@/models/Season';
 
 export async function GET(request, { params }) {
-  const { error } = await requireAdmin(request);
+  const { error } = await requireAdmin(request, 'trailers');
   if (error) return error;
 
   const { id } = await params;

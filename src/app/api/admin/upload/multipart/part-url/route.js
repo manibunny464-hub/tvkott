@@ -18,6 +18,11 @@ export async function POST(request) {
       );
     }
 
+    const trailer = typeof key === 'string' && key.startsWith('trailers/');
+    if (trailer) {
+      const { error } = await requireAdmin(request, 'trailers');
+      if (error) return error;
+    }
     const settings = await getMasterSettings();
     const bucketName = settings?.storage?.bucket || process.env.S3_BUCKET_NAME;
 

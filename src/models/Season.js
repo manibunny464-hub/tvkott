@@ -7,6 +7,7 @@ const SeasonSchema = new mongoose.Schema(
       ref: 'Content',
       required: true,
     },
+    seriesIds: { type: [mongoose.Schema.Types.ObjectId], ref: 'Content', default: undefined },
     seasonNumber: { type: Number, required: true },
     title: { type: String, default: '' },
     description: { type: String, default: '' },

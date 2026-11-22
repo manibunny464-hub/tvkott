@@ -1,3 +1,5 @@
+import { seasonTrailersByLanguage } from '@/lib/season-trailer-selection';
+import { recommendationCards } from '@/lib/more-like-this';
 import mongoose from "mongoose";
 import dbConnect from "@/lib/db";
 import Content from "@/models/Content";
@@ -209,7 +211,7 @@ export async function GET(request, { params }) {
     // Verify content exists
     const content = await Content.findOne(
       { _id: objectId, isActive: true, isDeleted: { $ne: true } },
-      { _id: 1, languages: 1 },
+      { _id: 1, languages: 1, primaryLanguage: 1 },
     ).lean();
 
     if (!content) {
@@ -267,14 +269,13 @@ export async function GET(request, { params }) {
         .lean(),
       SeasonTrailer.find(
         { seasonId: { $in: seasonIds }, isActive: { $ne: false } },
-        { seasonId: 1, videoUrl: 1, duration: 1 },
+        { seasonId: 1, videoUrl: 1, duration: 1, language: 1, languages: 1 },
       ).lean(),
     ]);
 
     // Build lookups
-    const trailersBySeasonId = new Map(
-      trailers.map((t) => [t.seasonId.toString(), t]),
-    );
+    const trailersBySeasonId = seasonTrailersByLanguage(trailers,
+      new URL(request.url).searchParams.get('language'), content.primaryLanguage);
     const bySeasonId = new Map();
     const bySeasonNumber = new Map();
 
@@ -293,6 +294,7 @@ export async function GET(request, { params }) {
 
     let totalEpisodes = 0;
 
+    const recommendations = await recommendationCards(dbSeasons.map((season) => season.seriesIds), 'series', resolveUrl);
     const seasons = dbSeasons.map((season) => {
       const seasonIdKey = season._id ? season._id.toString() : null;
       const epById = seasonIdKey ? bySeasonId.get(seasonIdKey) || [] : [];
@@ -333,12 +335,14 @@ export async function GET(request, { params }) {
           ? {
               videoUrl: resolveUrl(trailerUrl) || null,
               duration: Math.round(trailerDoc.duration || 0),
+              ...(trailerDoc.language ? { language: trailerDoc.language } : {}),
             }
           : null;
 
       return {
         id: season._id.toString(),
         seasonNumber: season.seasonNumber,
+        moreLikeThis: (season.seriesIds ?? []).map((id) => recommendations.get(String(id))).filter(Boolean),
         title: season.title || `Season ${season.seasonNumber}`,
         description: season.description || "",
         episodeCount: merged.length,

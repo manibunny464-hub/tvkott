@@ -123,26 +123,29 @@ export async function GET(request) {
       filter.language = { $in: resolvedLanguages };
     }
 
-    // 5. Query with pagination
+    const validSeriesIds = await getValidSeriesIds(resolvedLanguages);
+    const catalogQuery = {
+      $and: [filter, { $or: [
+        { type: { $ne: 'series' } },
+        { type: 'series', _id: { $in: validSeriesIds } },
+      ] }],
+    };
+
     const pageNum = Math.max(parseInt(page) || 1, 1);
-    const limitNum = Math.max(parseInt(limit) || 20, 1);
+    const limitNum = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
     const skip = (pageNum - 1) * limitNum;
 
     const [rawItems, total] = await Promise.all([
-      Content.find(filter)
-        .sort({ updatedAt: -1 })
+      Content.find(catalogQuery)
+        .select('-movieIds')
+        .sort({ updatedAt: -1, _id: -1 })
         .skip(skip)
         .limit(limitNum)
         .lean(),
-      Content.countDocuments(filter),
+      Content.countDocuments(catalogQuery),
     ]);
 
-    const validSeriesSet = new Set(await getValidSeriesIds(resolvedLanguages));
-    const items = rawItems.filter(
-      (item) => item.type !== 'series' || validSeriesSet.has(item._id.toString())
-    );
-
-    const serializedItems = items.map((item) => {
+    const serializedItems = rawItems.map((item) => {
       const itemIdStr = item._id.toString();
       const addedtolist = userMyList.includes(itemIdStr);
       return {
@@ -157,8 +160,8 @@ export async function GET(request) {
       pagination: {
         page: pageNum,
         limit: limitNum,
-        total: items.length,
-        pages: Math.ceil(items.length / limitNum) || 1,
+        total,
+        pages: Math.ceil(total / limitNum),
       },
     });
   } catch (error) {

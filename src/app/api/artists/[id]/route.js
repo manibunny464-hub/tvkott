@@ -1,9 +1,10 @@
+import { canAssignArtistType } from '@/lib/admin/artist-types';
 import dbConnect from '@/lib/db';
 import Artist from '@/models/Artist';
 import { requireAdmin } from '@/lib/admin/auth';
 
 export async function PUT(request, { params }) {
-  const { error } = await requireAdmin(request);
+  const { error } = await requireAdmin(request, 'content');
   if (error) return error;
 
   try {
@@ -19,6 +20,12 @@ export async function PUT(request, { params }) {
     }
 
     await dbConnect();
+
+    const existing = await Artist.findById(id).select('type').lean();
+    if (!existing) return Response.json({ success: false, message: 'Artist not found.' }, { status: 404 });
+    if (!(await canAssignArtistType(type, existing.type))) {
+      return Response.json({ success: false, message: 'Select an active artist type.' }, { status: 400 });
+    }
 
     const artist = await Artist.findByIdAndUpdate(
       id,
@@ -51,7 +58,7 @@ export async function PUT(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const { error } = await requireAdmin(request);
+  const { error } = await requireAdmin(request, 'content');
   if (error) return error;
 
   try {

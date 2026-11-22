@@ -51,6 +51,26 @@ const ContentSchema = new mongoose.Schema({
   bannerUrl: {
     type: String,
   },
+  subtitlesEnabled: { type: Boolean },
+  inactiveMovieLanguages: { type: [String], default: undefined, select: false },
+  movieHiddenByLanguage: { type: Boolean, select: false },
+  publishedMovie: { type: mongoose.Schema.Types.Mixed, select: false },
+  primaryLanguage: { type: String, select: false },
+  selectedLanguageCodes: { type: [String], default: undefined, select: false },
+  localizations: {
+    select: false,
+    type: [{
+      _id: false,
+      language: { type: String, required: true },
+      title: String,
+      description: String,
+      posterUrl: String,
+      bannerUrl: String,
+      trailerUrl: String,
+    }],
+    default: undefined,
+  },
+  movieIds: { type: [mongoose.Schema.Types.ObjectId], ref: 'Content', default: undefined },
   trailerPoster: {
     type: String,
   },

@@ -1,4 +1,4 @@
-import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import s3 from '@/lib/s3';
 
 function safeName(name = 'file') {
@@ -32,4 +32,15 @@ export async function uploadFormFile(file, folder) {
   );
 
   return { key, url: cdnUrlForKey(key) };
+}
+
+export async function verifiedTrailerUrl(key, storage) {
+  if (typeof key !== 'string' || !/^trailers\/[a-zA-Z0-9._-]+$/.test(key)) return null;
+  const bucket = storage?.bucket || process.env.S3_BUCKET_NAME;
+  if (!bucket) throw new Error('Trailer storage is not configured.');
+  const result = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+  if (!result.ContentLength || !['video/mp4', 'video/webm'].includes(result.ContentType)) return null;
+  const cdn = storage?.cdnUrl || process.env.CDN_URL || process.env.CLOUDFRONT_URL;
+  return cdn ? `${cdn.replace(/\/$/, '')}/${key}`
+    : `https://${bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
 }

@@ -32,7 +32,7 @@ export async function GET(request) {
     const contentIds = [...new Set(inProgress.map((h) => h.contentId))];
     const episodeIds = inProgress.map((h) => h.episodeId).filter(Boolean);
 
-    const contentQuery = { _id: { $in: contentIds } };
+    const contentQuery = { _id: { $in: contentIds }, isActive: true, isDeleted: { $ne: true } };
     if (preferredLangs.length > 0) {
       contentQuery.language = { $in: preferredLangs };
     }
@@ -43,7 +43,7 @@ export async function GET(request) {
         { _id: 1, title: 1, thumbnailUrl: 1 },
       ).lean(),
       Episode.find(
-        { _id: { $in: episodeIds } },
+        { _id: { $in: episodeIds }, isActive: true, isDeleted: { $ne: true } },
         { _id: 1, episodeNumber: 1, seasonId: 1 },
       ).lean(),
     ]);
@@ -53,8 +53,9 @@ export async function GET(request) {
     );
 
     // Keep only the watch history entries whose content matches the language filters, up to 10 items
+    const episodeIdsVisible = new Set(episodes.map((episode) => String(episode._id)));
     const filteredHistory = inProgress
-      .filter((h) => contentMap[h.contentId.toString()] !== undefined)
+      .filter((h) => contentMap[h.contentId.toString()] !== undefined && (!h.episodeId || episodeIdsVisible.has(h.episodeId.toString())))
       .slice(0, 10);
 
     if (filteredHistory.length === 0) {
@@ -145,7 +146,7 @@ export async function POST(request) {
 
     await dbConnect();
 
-    const content = await Content.findById(contentId).lean();
+    const content = await Content.findOne({ _id: contentId, isActive: true, isDeleted: { $ne: true } }).lean();
     if (!content) {
       return Response.json(
         { success: false, message: "Content not found" },
@@ -158,6 +159,12 @@ export async function POST(request) {
         { success: false, message: "episodeId is required for series content" },
         { status: 400 },
       );
+    }
+
+    if (episodeId && !await Episode.exists({
+      _id: episodeId, seriesId: contentId, isActive: true, isDeleted: { $ne: true },
+    })) {
+      return Response.json({ success: false, message: "Episode not found" }, { status: 404 });
     }
 
     const progress = Math.min(

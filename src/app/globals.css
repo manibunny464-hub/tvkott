@@ -140,3 +140,88 @@ h1, h2, h3, h4, h5, h6, .font-display, .font-heading {
   background: var(--admin-primary);
 }
 
+
+/* TVK Studio chrome and shared admin component colors. */
+.tvk-admin,
+:root:has(.tvk-admin) [data-slot="dialog-content"],
+:root:has(.tvk-admin) .tvk-alert {
+  --admin-primary: #92601b;
+  --admin-button-text: #fffaf3;
+  --admin-accent: #9b322d;
+  --admin-background: #faf5ed;
+  --admin-surface: #fffaf3;
+  --admin-foreground: #2c211a;
+  --admin-muted: #695849;
+  --admin-border: #e6d9c8;
+  --admin-soft: #f2e7d8;
+}
+
+.dark-admin .tvk-admin,
+.dark-admin:has(.tvk-admin) [data-slot="dialog-content"],
+.dark-admin:has(.tvk-admin) .tvk-alert {
+  --admin-primary: #e6b969;
+  --admin-button-text: #23150d;
+  --admin-accent: #c5564d;
+  --admin-background: #16110f;
+  --admin-surface: #211916;
+  --admin-foreground: #fbf2e4;
+  --admin-muted: #c2b1a0;
+  --admin-border: #423229;
+  --admin-soft: #30231d;
+}
+
+.tvk-admin-sidebar {
+  background: linear-gradient(155deg, var(--admin-surface), var(--admin-background));
+}
+
+.tvk-admin-header {
+  box-shadow: 0 4px 18px rgb(0 0 0 / 6%);
+}
+
+.tvk-upload-action {
+  background: #e6b969;
+  color: #23150d;
+  box-shadow: 0 4px 16px rgb(145 84 19 / 20%);
+}
+
+.tvk-dashboard-hero {
+  background: radial-gradient(ellipse at top right, color-mix(in srgb, var(--admin-primary) 13%, transparent), transparent 62%),
+    var(--admin-surface);
+}
+
+.dark-admin .tvk-dashboard-published {
+  color: #a7f3d0;
+}
+
+.tvk-alert.swal2-popup,
+.tvk-alert.swal2-popup.swal2-toast {
+  background: var(--admin-surface);
+  color: var(--admin-foreground);
+  border: 1px solid var(--admin-border);
+}
+
+.tvk-alert .swal2-title,
+.tvk-alert .swal2-html-container {
+  color: var(--admin-foreground);
+}
+
+.tvk-validation {
+  padding: .65rem .8rem;
+  border: 1px solid #d9a29a;
+  border-radius: .5rem;
+  background: #fff1ef;
+  color: #842c24;
+}
+
+.dark-admin .tvk-validation {
+  border-color: #854840;
+  background: #3b211e;
+  color: #ffd0cb;
+}
+
+.tvk-wide-preview {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  background: #000;
+}

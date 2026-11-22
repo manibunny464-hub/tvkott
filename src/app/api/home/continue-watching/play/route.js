@@ -4,38 +4,7 @@ import { requireAuth } from "@/lib/authMiddleware";
 import User from "@/models/User";
 import Content from "@/models/Content";
 import Episode from "@/models/Episode";
-import { verifyToken } from "@/lib/jwt";
-
-// ─── Optional auth ────────────────────────────────────────────────────────────
-function resolveUser(request) {
-  try {
-    let token = null;
-
-    // 1. Check Authorization Header (Bearer token)
-    const authHeader = request.headers.get("authorization") || "";
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      token = authHeader.slice(7);
-    }
-
-    // 2. Check Custom Headers
-    if (!token) {
-      token =
-        request.headers.get("x-auth-token") || request.headers.get("token");
-    }
-
-    // 3. Check Cookies
-    if (!token) {
-      token =
-        request.cookies.get("token")?.value ||
-        request.cookies.get("chirpii_admin_session")?.value;
-    }
-
-    if (!token) return null;
-    return verifyToken(token) || null;
-  } catch {
-    return null;
-  }
-}
+import { getUserEntitlements, isQualityAllowed } from "@/lib/subscription/entitlementService";
 
 // ─── CDN / URL resolver ───────────────────────────────────────────────────────
 function resolveUrl(raw) {
@@ -51,7 +20,7 @@ function resolveUrl(raw) {
 }
 
 // ─── Serialize episode language variants ──────────────────────────────────────
-function serializeLanguages(episode) {
+function serializeLanguages(episode, allowedQuality) {
   if (!Array.isArray(episode.languages) || episode.languages.length === 0)
     return [];
   return episode.languages
@@ -63,7 +32,10 @@ function serializeLanguages(episode) {
         resolveUrl(lang.thumbnailUrl) ||
         resolveUrl(episode.thumbnailUrl) ||
         null,
-      videoFiles: (lang.videoFiles || []).map((vf) => ({
+      videoFiles: (lang.videoFiles || []).filter((vf) => {
+        const quality = String(vf.quality || "").toLowerCase();
+        return isQualityAllowed(allowedQuality, ["4k", "2160p"].includes(quality) ? "4K" : quality);
+      }).map((vf) => ({
         quality: vf.quality,
         videoUrl: resolveUrl(vf.videoUrl) || null,
         duration: Math.round(vf.duration || 0),
@@ -74,20 +46,8 @@ function serializeLanguages(episode) {
 }
 
 export async function GET(request) {
-  let resolvedUser = resolveUser(request);
-  if (!resolvedUser) {
-    const auth = await requireAuth(request).catch(() => null);
-    if (auth && auth.success) {
-      resolvedUser = auth.user;
-    }
-  }
-
-  if (!resolvedUser) {
-    return Response.json(
-      { success: false, message: "Authorization token required" },
-      { status: 401 }
-    );
-  }
+  const { user: resolvedUser, error } = await requireAuth(request, { allowLegacyHeaders: true });
+  if (error) return error;
 
   try {
     const { searchParams } = new URL(request.url);
@@ -103,7 +63,11 @@ export async function GET(request) {
 
     await dbConnect();
 
-    const dbUser = await User.findById(resolvedUser.userId).lean();
+    const series = await Content.exists({ _id: contentId, type: "series", isActive: true, isDeleted: { $ne: true } });
+    if (!series) return Response.json({ success: false, message: "Content not found" }, { status: 404 });
+
+    const dbUser = await User.findById(resolvedUser.userId).select("watchHistory").lean();
+    if (!dbUser) return Response.json({ success: false, message: "User not found" }, { status: 401 });
 
     // If episodeId is not provided, try to resolve it from the user's watchHistory or first episode of the series
     if (!episodeId) {
@@ -152,7 +116,10 @@ export async function GET(request) {
     }
 
     // 2. Resolve series episode details and playback URLs
-    const episode = await Episode.findById(episodeId).lean();
+    if (!mongoose.isObjectIdOrHexString(episodeId)) {
+      return Response.json({ success: false, message: "Invalid episodeId" }, { status: 400 });
+    }
+    const episode = await Episode.findOne({ _id: episodeId, seriesId: contentId, isActive: true, isDeleted: { $ne: true } }).lean();
     if (!episode) {
       return Response.json(
         { success: false, message: "Episode not found" },
@@ -160,7 +127,12 @@ export async function GET(request) {
       );
     }
 
-    const seriesId = episode.seriesId || episode.contentId || contentId;
+    const entitlements = await getUserEntitlements(resolvedUser.userId);
+    if (!episode.isFree && (!entitlements.isPremium || !entitlements.features.premiumContentAccess)) {
+      return Response.json({ success: false, message: "Premium subscription required" }, { status: 403 });
+    }
+
+    const seriesId = episode.seriesId;
     const seasonId = episode.seasonId;
 
     // Fetch adjacent episode IDs (previous and next in the same season)
@@ -192,7 +164,7 @@ export async function GET(request) {
     const hasHls = Boolean(episode.hlsMasterUrl || episode.hlsMasterKey);
     const playbackUrl = hasHls ? manifestUrl : (episode.videoUrl || null);
 
-    const resolvedLanguages = serializeLanguages(episode);
+    const resolvedLanguages = serializeLanguages(episode, entitlements.features.videoQuality || "480p");
 
     return Response.json({
       success: true,

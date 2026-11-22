@@ -1,3 +1,4 @@
+import { validateBannerFields } from '@/lib/admin/banner-fields';
 import { requireAdmin } from '@/lib/admin/auth';
 import { optionalObjectId, readBody, softDeletePatch, toBoolean } from '@/lib/admin/api';
 import { uploadFormFile } from '@/lib/admin/media';
@@ -5,16 +6,34 @@ import dbConnect from '@/lib/db';
 import Banner from '@/models/Banner';
 import Content from '@/models/Content';
 
+export async function GET(request, { params }) {
+  const { error } = await requireAdmin(request);
+  if (error) return error;
+  const { id } = await params;
+  if (!optionalObjectId(id)) return Response.json({ success: false, message: 'Invalid banner.' }, { status: 400 });
+  await dbConnect();
+  const banner = await Banner.findOne({ _id: id, isDeleted: { $ne: true } }).lean();
+  return banner ? Response.json({ success: true, banner })
+    : Response.json({ success: false, message: 'Banner not found.' }, { status: 404 });
+}
+
 export async function PUT(request, { params }) {
   const { error } = await requireAdmin(request, ['super_admin', 'editor']);
   if (error) return error;
 
   const { id } = await params;
   const { formData, data } = await readBody(request);
-  const uploaded = await uploadFormFile(formData?.get('image'), 'banners');
-
   await dbConnect();
 
+  const image = formData?.get('image');
+  const validation = await validateBannerFields(data, image);
+  if (validation) return Response.json({ success: false, message: validation }, { status: 400 });
+  let uploaded;
+  try {
+    uploaded = await uploadFormFile(image, 'banners');
+  } catch {
+    return Response.json({ success: false, message: 'Artwork upload failed. Check storage and retry.' }, { status: 502 });
+  }
   let title = data.title;
   let subtitle = data.subtitle || '';
   if (data.linkedContentId) {
@@ -22,8 +41,6 @@ export async function PUT(request, { params }) {
     if (content) {
       if (!title) title = content.title;
       if (!subtitle) subtitle = content.description || '';
-      // Also update isFeatured flag on the referenced series
-      await Content.findByIdAndUpdate(content._id, { $set: { isFeatured: true } });
     }
   }
 
@@ -41,13 +58,14 @@ export async function PUT(request, { params }) {
     updateObj.imageUrl = imageVal;
   }
 
-  const banner = await Banner.findByIdAndUpdate(
-    id,
+  const banner = await Banner.findOneAndUpdate(
+    { _id: id, isDeleted: { $ne: true } },
     { $set: updateObj },
     { returnDocument: 'after', runValidators: true }
   );
 
-  return Response.json({ success: true, banner });
+  return banner ? Response.json({ success: true, banner })
+    : Response.json({ success: false, message: 'Banner not found.' }, { status: 404 });
 }
 
 export async function DELETE(request, { params }) {

@@ -8,7 +8,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          'bg-[var(--admin-primary)] text-[#031216] shadow-[0_12px_30px_rgba(0,217,255,0.24)] hover:brightness-95',
+          'bg-[var(--admin-primary)] text-[var(--admin-button-text,#031216)] shadow-[0_5px_18px_color-mix(in_srgb,var(--admin-primary)_22%,transparent)] hover:brightness-95',
         accent:
           'bg-[var(--admin-accent)] text-white shadow-[0_12px_30px_rgba(255,31,143,0.22)] hover:brightness-95',
         outline:
@@ -35,7 +35,7 @@ export function Button({ className, variant, size, asChild = false, ...props }) 
   const Comp = asChild ? Slot : 'button';
   return (
     <Comp
-      className={cn(buttonVariants({ variant, size }), className)}
+      className={cn(buttonVariants({ variant: variant === 'default' ? 'primary' : variant, size }), className)}
       {...props}
     />
   );

@@ -133,7 +133,7 @@ async function fetchContinueWatching(userId, preferredLangs = []) {
   const contentIds = [...new Set(inProgress.map((h) => h.contentId))];
   const episodeIds = inProgress.map((h) => h.episodeId).filter(Boolean);
 
-  const contentQuery = { _id: { $in: contentIds } };
+  const contentQuery = { _id: { $in: contentIds }, isActive: true, isDeleted: { $ne: true } };
   if (preferredLangs.length > 0) {
     contentQuery.language = { $in: preferredLangs };
   }
@@ -144,7 +144,7 @@ async function fetchContinueWatching(userId, preferredLangs = []) {
       { _id: 1, title: 1, thumbnailUrl: 1 },
     ).lean(),
     Episode.find(
-      { _id: { $in: episodeIds } },
+      { _id: { $in: episodeIds }, isActive: true, isDeleted: { $ne: true } },
       { _id: 1, episodeNumber: 1, season: 1, seasonId: 1 },
     ).lean(),
   ]);
@@ -173,8 +173,9 @@ async function fetchContinueWatching(userId, preferredLangs = []) {
     }),
   );
 
+  const episodeIdsVisible = new Set(episodes.map((episode) => String(episode._id)));
   const filteredHistory = inProgress
-    .filter((h) => contentMap[h.contentId.toString()] !== undefined)
+    .filter((h) => contentMap[h.contentId.toString()] !== undefined && (!h.episodeId || episodeIdsVisible.has(h.episodeId.toString())))
     .slice(0, 6);
 
   return filteredHistory.map((h) => {

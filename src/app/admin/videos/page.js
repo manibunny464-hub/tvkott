@@ -1,5 +1,5 @@
-import AdminRoutePage from '@/components/admin/admin-route';
+import { redirect } from 'next/navigation';
 
-export default function VideosPage() {
-  return <AdminRoutePage view="videos" />;
+export default function RetiredUploadPage() {
+  redirect('/admin/movies');
 }

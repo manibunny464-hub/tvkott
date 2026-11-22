@@ -1,5 +1,6 @@
 "use client";
 
+import { isLocalizationReady } from "@/lib/localization-readiness";
 import Swal from "sweetalert2";
 
 /* eslint-disable @next/next/no-img-element, react-hooks/set-state-in-effect, react-hooks/exhaustive-deps, jsx-a11y/alt-text */
@@ -13,6 +14,7 @@ import {
   Calendar,
   Check,
   ChevronDown,
+  ChevronUp,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -68,7 +70,7 @@ import {
   Trophy,
   Heart,
 } from "lucide-react";
-import { motion, AnimatePresence, Reorder } from "framer-motion";
+import { motion, AnimatePresence, Reorder, useReducedMotion } from "framer-motion";
 import {
   Area,
   AreaChart,
@@ -111,7 +113,15 @@ import { Input, Select, Textarea } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import SubscribersView from "./SubscribersView";
 import TransactionsView from "./TransactionsView";
+import MovieAssetWorkspace from "./movie-quality-uploads";
+import VideoUploadProgress from "./video-upload-progress";
+import SeriesPreview from "./series-preview";
+import MovieView from "./movie-view";
 import SubscriptionAnalytics from "./SubscriptionAnalytics";
+
+function canUploadVideo(admin) {
+  return ["super_admin", "editor"].includes(admin?.role);
+}
 
 const navItems = [
   {
@@ -120,6 +130,7 @@ const navItems = [
     label: "Dashboard",
     icon: LayoutDashboard,
   },
+  { href: "/admin/movies", view: "movies", label: "Movies", icon: Film },
   //   {
   //     href: "/admin/content",
   //     view: "content",
@@ -149,20 +160,6 @@ const navItems = [
     permission: "users",
   },
   {
-    href: "/admin/seasons",
-    view: "seasons",
-    label: "Seasons",
-    icon: ChevronRight,
-    permission: "seasons",
-  },
-  {
-    href: "/admin/episodes",
-    view: "episodes",
-    label: "Episodes",
-    icon: PlayCircle,
-    permission: "episodes",
-  },
-  {
     href: "/admin/trailers-admin",
     view: "trailers-admin",
     label: "Trailers",
@@ -179,7 +176,7 @@ const navItems = [
   {
     href: "/admin/artists",
     view: "artists",
-    label: "Artist Management",
+    label: "Cast & Crew",
     icon: Users,
     permission: "content",
   },
@@ -261,6 +258,13 @@ const navItems = [
     permission: "cms",
   },
   {
+    href: "/admin/audit",
+    view: "audit",
+    label: "Audit Log",
+    icon: Shield,
+    permission: "audit.view",
+  },
+  {
     href: "/admin/roles",
     view: "roles",
     label: "Roles & Admins",
@@ -279,9 +283,6 @@ const navItems = [
 const pageTitles = {
   dashboard: "Dashboard",
   content: "Content Hub",
-  videos: "Raw Video Management",
-  "bulk-upload": "Bulk Raw Upload",
-  "video-detail": "Raw Video Detail",
   users: "User Management",
   subscribers: "Subscribers",
   plans: "Subscription Plans",
@@ -293,14 +294,15 @@ const pageTitles = {
   notifications: "Notifications",
   settings: "Settings",
   "master-app-settings": "Master App Settings",
-  movies: "Movie Management",
+  movies: "Movies Library",
   series: "Series Management",
   seasons: "Season Management",
   episodes: "Episode Management",
   "bulk-episodes": "Bulk Episodes Upload",
   "trailers-admin": "Trailer Management",
   banners: "Banner Management",
-  artists: "Artist Management",
+  artists: "Cast & Crew",
+  audit: "Audit Log",
   "coming-soon-admin": "Coming Soon Management",
   "trending-admin": "Trending Management",
   blockbusters: "Blockbuster Management",
@@ -428,8 +430,6 @@ function getViewApiUrl(view, seriesId = null) {
       return "/api/admin/roles";
     case "featured":
       return "/api/admin/featured";
-    case "videos":
-      return "/api/admin/videos";
     case "coming-soon-admin":
       return "/api/admin/coming-soon?page=1";
     case "trending-admin":
@@ -457,8 +457,7 @@ async function showConfirm(title, text = "This action cannot be undone.", confir
     confirmButtonColor: "#ec3f6f",
     cancelButtonColor: "#6c757d",
     confirmButtonText,
-    background: "var(--admin-surface, #ffffff)",
-    color: "var(--admin-foreground, #0f172a)",
+    customClass: { popup: "tvk-alert" },
   });
   return result.isConfirmed;
 }
@@ -497,21 +496,6 @@ function updateCacheItem(sid, updates) {
         if ((value.series._id || value.series.id) === sid) {
           value.series = { ...value.series, ...updates };
           modified = true;
-        }
-      }
-
-      // 4. If it's dashboard recentUploads
-      if (value.data && typeof value.data === "object") {
-        const d = value.data;
-        if (Array.isArray(d.recentUploads)) {
-          const nextUploads = d.recentUploads.map((item) => {
-            if ((item._id || item.id) === sid) {
-              modified = true;
-              return { ...item, ...updates };
-            }
-            return item;
-          });
-          if (modified) d.recentUploads = nextUploads;
         }
       }
 
@@ -695,6 +679,7 @@ function ImageUploadField({
   aspectRatio = "16 / 9",
   disabled = false,
   hintKey = "thumbnail",
+  compact = false,
 }) {
   const fileInputRef = useRef(null);
   const [isRemoved, setIsRemoved] = useState(false);
@@ -757,7 +742,7 @@ function ImageUploadField({
 
   return (
     <div className="space-y-1.5 rounded-[var(--radius-sm)] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-3">
-      <div className="flex justify-between items-start">
+      <div className="flex flex-wrap justify-between items-start gap-2">
         <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-foreground)]">
           {label}
         </label>
@@ -768,13 +753,14 @@ function ImageUploadField({
 
       <div
         className={cn(
-          "grid min-h-[140px] place-items-center overflow-hidden rounded-[var(--radius-sm)] border border-dashed relative group transition",
+          "grid place-items-center overflow-hidden rounded-[var(--radius-sm)] border border-dashed relative group transition",
+          compact ? "h-40" : "min-h-[140px]",
           isDragging
             ? "border-[var(--admin-primary)] bg-[var(--admin-soft)]"
             : "border-[var(--admin-border)] bg-[var(--admin-soft)]",
           !previewUrl && !disabled ? "cursor-pointer hover:border-[var(--admin-primary)]" : ""
         )}
-        style={{ aspectRatio }}
+        style={compact ? undefined : { aspectRatio }}
         onClick={() => {
           if (!previewUrl && !disabled) {
             fileInputRef.current?.click();
@@ -792,7 +778,7 @@ function ImageUploadField({
             <img
               src={previewUrl}
               alt={`${label} preview`}
-              className="h-full w-full object-cover"
+              className={cn("h-full w-full", compact ? "object-contain" : "object-cover")}
             />
             {/* Top right prominent X button overlay on preview */}
             {!disabled && (
@@ -1202,8 +1188,11 @@ function MultiSelectField({
   selected = [],
   onChange,
   disabled = false,
+  valueKey,
+  lockedValues = [],
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const selectedList = Array.isArray(selected)
     ? selected
     : typeof selected === "string"
@@ -1212,6 +1201,10 @@ function MultiSelectField({
           .map((s) => s.trim())
           .filter(Boolean)
       : [];
+
+  const optionName = (option) => typeof option === "string" ? option : option.name || option.englishName;
+  const optionValue = (option) => (valueKey && typeof option !== "string") ? option[valueKey] : optionName(option);
+  const names = new Map(options.map((option) => [optionValue(option), optionName(option)]));
 
   const handleToggle = (value) => {
     let next;
@@ -1232,11 +1225,13 @@ function MultiSelectField({
         <button
           type="button"
           disabled={disabled}
-          onClick={() => setIsOpen(!isOpen)}
+          aria-label={label}
+          aria-expanded={isOpen}
+          onClick={() => { setSearch(""); setIsOpen(!isOpen); }}
           className="flex h-10 w-full items-center justify-between rounded-[var(--radius-sm)] border border-[var(--admin-border)] bg-[var(--admin-surface)] px-3 text-sm text-[var(--admin-foreground)] outline-none transition focus:border-[var(--admin-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--admin-primary)_18%,transparent)]"
         >
           <span className="truncate">
-            {selectedList.length > 0 ? selectedList.join(", ") : placeholder}
+            {selectedList.length > 0 ? selectedList.map((value) => names.get(value) || value).join(", ") : placeholder}
           </span>
           <ChevronDown size={16} className="text-[var(--admin-muted)]" />
         </button>
@@ -1247,11 +1242,13 @@ function MultiSelectField({
               onClick={() => setIsOpen(false)}
             />
             <div className="absolute left-0 right-0 mt-1 z-50 max-h-60 overflow-y-auto rounded-[var(--radius-sm)] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-2 shadow-lg">
-              {options.map((opt) => {
-                const name =
-                  typeof opt === "string" ? opt : opt.name || opt.englishName;
-                const value =
-                  typeof opt === "string" ? opt : opt.name || opt.englishName;
+              {options.length > 0 && <Input className="mb-2" aria-label={`Search ${label.toLowerCase()}`} placeholder="Search options"
+                value={search} onChange={(event) => setSearch(event.target.value)}
+                onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }} />}
+              {options.filter((option) => String(optionName(option))
+                .toLowerCase().includes(search.trim().toLowerCase())).map((opt) => {
+                const name = optionName(opt);
+                const value = optionValue(opt);
                 const isChecked = selectedList.includes(value);
                 return (
                   <label
@@ -1261,7 +1258,7 @@ function MultiSelectField({
                     <input
                       type="checkbox"
                       checked={isChecked}
-                      disabled={disabled}
+                      disabled={disabled || lockedValues.includes(value)}
                       onChange={() => handleToggle(value)}
                       className="rounded border-[var(--admin-border)] text-[var(--admin-primary)] focus:ring-0"
                     />
@@ -1363,7 +1360,6 @@ function Sidebar({
   activeView,
   collapsed,
   setCollapsed,
-  settings,
   admin,
   onNavigate,
   mobileMenuOpen,
@@ -1377,6 +1373,7 @@ function Sidebar({
   const [contentHubOpen, setContentHubOpen] = useState(true);
 
   const hasPermission = (item) => {
+    if (item.uploadOnly) return canUploadVideo(admin);
     if (admin?.role === "super_admin") return true;
     if (!item.permission) return true;
     return admin?.permissions?.includes(item.permission);
@@ -1384,6 +1381,7 @@ function Sidebar({
 
   const contentHubItems = navItems.filter((item) =>
     [
+      "movies",
       "series",
       "seasons",
       "episodes",
@@ -1397,6 +1395,7 @@ function Sidebar({
     (item) =>
       ![
         "content",
+        "movies",
         "series",
         "seasons",
         "episodes",
@@ -1419,25 +1418,20 @@ function Sidebar({
       />
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-[220px] flex-col border-r border-[var(--admin-border)] bg-[var(--admin-surface)] transition-all duration-300 lg:translate-x-0",
+          "tvk-admin-sidebar fixed inset-y-0 left-0 z-50 flex w-[220px] flex-col border-r border-[var(--admin-border)] bg-[var(--admin-surface)] transition-[width,translate] duration-200 motion-reduce:transition-none lg:translate-x-0",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full",
           collapsed ? "lg:w-[76px]" : "lg:w-[220px]",
         )}
       >
         <div className="flex h-20 items-center gap-3 border-b border-[var(--admin-border)] px-5">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[8px] bg-[var(--admin-primary)] font-display text-xl font-black text-[#031216] shadow-[0_0_28px_rgba(0,217,255,0.35)]">
-            c
-          </div>
-          {!collapsed ? (
-            <div className="min-w-0">
-              <p className="truncate font-display text-xl font-semibold">
-                {settings?.platformName || "Chirpii Admin"}
-              </p>
-              <p className="truncate text-xs uppercase tracking-[0.22em] text-[var(--admin-muted)]">
-                control room
-              </p>
-            </div>
-          ) : null}
+          <Link href="/admin" aria-label="TVK Studio dashboard" className="flex min-w-0 items-center gap-2.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/tvk-admin-logo.webp" alt="" width={72} height={40}
+              className={cn("shrink-0 rounded-md object-contain", collapsed ? "w-9" : "w-[72px]")} />
+            <span className={cn("truncate text-sm font-semibold text-[var(--admin-primary)]", collapsed && "lg:sr-only")}>
+              TVK Studio
+            </span>
+          </Link>
           <Button
             type="button"
             variant="ghost"
@@ -1461,7 +1455,7 @@ function Sidebar({
                 <Link
                   key={item.href}
                   href={item.href}
-                  prefetch={true}
+                  prefetch={process.env.NODE_ENV === "production"}
                   onMouseEnter={() => prefetchViewData(item.view)}
                   onTouchStart={() => prefetchViewData(item.view)}
                   onClick={() => {
@@ -1533,21 +1527,13 @@ function Sidebar({
                       const activeSeries = seriesList.find(s => (s._id || s.id) === selectedSeriesId);
                       const slug = activeSeries?.slug || String(activeSeries?.title || "").toLowerCase().replace(/[^a-z0-9]+/g, '-');
                       if (slug) {
-                        if (item.view === "seasons") {
-                          targetHref = `/admin/seasons?series=${slug}`;
-                        } else if (item.view === "episodes") {
-                          targetHref = `/admin/episodes?series=${slug}`;
-                        } else if (item.view === "trailers-admin") {
+                        if (item.view === "trailers-admin") {
                           targetHref = `/admin/trailers-admin?series=${slug}`;
                         } else if (item.view === "banners") {
                           targetHref = `/admin/banners?series=${slug}`;
                         }
                       } else {
-                        if (item.view === "seasons") {
-                          targetHref = `/admin/seasons?seriesId=${selectedSeriesId}`;
-                        } else if (item.view === "episodes") {
-                          targetHref = `/admin/episodes?seriesId=${selectedSeriesId}`;
-                        } else if (item.view === "trailers-admin") {
+                        if (item.view === "trailers-admin") {
                           targetHref = `/admin/trailers-admin?seriesId=${selectedSeriesId}`;
                         } else if (item.view === "banners") {
                           targetHref = `/admin/banners?seriesId=${selectedSeriesId}`;
@@ -1559,7 +1545,7 @@ function Sidebar({
                       <Link
                         key={item.href}
                         href={targetHref}
-                        prefetch={true}
+                        prefetch={process.env.NODE_ENV === "production"}
                         onMouseEnter={() => prefetchViewData(item.view, selectedSeriesId)}
                         onTouchStart={() => prefetchViewData(item.view, selectedSeriesId)}
                         onClick={() => {
@@ -1591,7 +1577,7 @@ function Sidebar({
                 <Link
                   key={item.href}
                   href={item.href}
-                  prefetch={true}
+                  prefetch={process.env.NODE_ENV === "production"}
                   onMouseEnter={() => prefetchViewData(item.view)}
                   onTouchStart={() => prefetchViewData(item.view)}
                   onClick={() => {
@@ -1667,7 +1653,7 @@ function MobileNav({ activeView, onNavigate, admin }) {
           <Link
             key={item.href}
             href={item.href}
-            prefetch={true}
+            prefetch={process.env.NODE_ENV === "production"}
             onTouchStart={() => prefetchViewData(item.view)}
             onClick={() => {
               if (!active) onNavigate(item.view);
@@ -1711,7 +1697,7 @@ function Header({
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b border-[var(--admin-border)] bg-[color-mix(in_srgb,var(--admin-background)_86%,transparent)] px-4 backdrop-blur-xl sm:px-5">
+    <header className="tvk-admin-header sticky top-0 z-30 border-b border-[var(--admin-border)] bg-[color-mix(in_srgb,var(--admin-background)_86%,transparent)] px-4 backdrop-blur-xl sm:px-5">
       <div className="flex h-16 items-center gap-3">
         {/* Menu toggle button – mobile opens drawer, desktop collapses sidebar */}
         <button
@@ -1743,7 +1729,7 @@ function Header({
               <>
                 <Link
                   href="/admin"
-                  prefetch={true}
+                  prefetch={process.env.NODE_ENV === "production"}
                   className="hover:text-[var(--admin-foreground)] transition"
                 >
                   Admin
@@ -1751,7 +1737,7 @@ function Header({
                 <ChevronRight size={12} />
                 <Link
                   href="/admin/series"
-                  prefetch={true}
+                  prefetch={process.env.NODE_ENV === "production"}
                   className="hover:text-[var(--admin-foreground)] transition"
                 >
                   Content Hub
@@ -1767,7 +1753,7 @@ function Header({
                     <ChevronRight size={12} />
                     <Link
                       href="/admin/series"
-                      prefetch={true}
+                      prefetch={process.env.NODE_ENV === "production"}
                       className="hover:text-[var(--admin-foreground)] transition"
                     >
                       Series
@@ -1836,7 +1822,7 @@ function Header({
             size="icon"
             className="h-9 w-9"
             onClick={() => setDarkMode((value) => !value)}
-            aria-label="Toggle dark mode"
+            aria-label={darkMode ? "Switch to light theme" : "Switch to dark theme"}
           >
             {darkMode ? <Sun size={17} /> : <Moon size={17} />}
           </Button>
@@ -1881,11 +1867,12 @@ function Header({
 }
 
 function PageShell({ children }) {
+  const reduceMotion = useReducedMotion();
   return (
     <motion.main
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.28 }}
+      initial={reduceMotion ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.18 }}
       className="mx-auto w-full max-w-[1580px] px-4 py-6 pb-28 sm:px-6 lg:pb-8"
     >
       {children}
@@ -1893,398 +1880,127 @@ function PageShell({ children }) {
   );
 }
 
-function DashboardView({ data, loading, notify, refresh }) {
-  const [subscribers, setSubscribers] = useState(data?.recentSubscribers || []);
-  const [subscribersLoading, setSubscribersLoading] = useState(!data?.recentSubscribers?.length);
-
-  useEffect(() => {
-    if (data?.recentSubscribers && data.recentSubscribers.length > 0) {
-      setSubscribers(data.recentSubscribers);
-      setSubscribersLoading(false);
-    } else {
-      async function loadSubs() {
-        try {
-          const res = await apiFetch("/api/admin/subscribers?limit=6");
-          if (res?.success && Array.isArray(res.subscribers)) {
-            setSubscribers(res.subscribers);
-          }
-        } catch (e) {
-          console.error("Failed to fetch dashboard subscribers:", e);
-        } finally {
-          setSubscribersLoading(false);
-        }
-      }
-      loadSubs();
-    }
-  }, [data]);
-
-  if (loading) {
+function DashboardView({ data, loading, admin, refresh }) {
+  if (!data?.stats || !Array.isArray(data.recentTitles) || !Array.isArray(data.viewsOverTime)) {
     return (
       <PageShell>
-        <PinkLoader className="min-h-[70vh]" />
+        {loading ? <PinkLoader /> : <EmptyState title="Dashboard unavailable"
+          description="The studio overview could not be loaded."
+          action={<Button onClick={refresh}>Try again</Button>} />}
       </PageShell>
     );
   }
 
-  const stats = data?.stats || {};
-  const kpis = [
-    {
-      label: "Total Series",
-      value: compactNumber(stats.totalSeries || 0),
-      icon: Tv,
-    },
-    {
-      label: "Total Seasons",
-      value: compactNumber(stats.totalSeasons || 0),
-      icon: Layers3,
-    },
-    {
-      label: "Total Episodes",
-      value: compactNumber(stats.totalEpisodes || 0),
-      icon: PlayCircle,
-    },
-    {
-      label: "Total Users",
-      value: compactNumber(stats.totalUsers),
-      icon: Users,
-    },
+  const stats = data.stats;
+  const isSuperAdmin = admin?.role === "super_admin";
+  const canView = (permission) => isSuperAdmin || admin?.permissions?.includes("*") || admin?.permissions?.includes(permission);
+  const metrics = [
+    { label: "Movies", value: stats.totalMovies, icon: Film, href: "/admin/movies" },
+    { label: "Series", value: stats.totalSeries, icon: Tv, href: canView("series") ? "/admin/series" : null },
+    { label: "Episodes", value: stats.totalEpisodes, icon: PlayCircle, href: canView("series") ? "/admin/series" : null },
+    { label: "Title drafts", value: stats.totalDrafts, icon: FileVideo },
   ];
+  const activity = data.viewsOverTime;
+  const totalViews = activity.reduce((total, day) => total + day.views, 0);
+  const maxViews = Math.max(1, ...activity.map((day) => day.views));
+  const dateLabel = new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeZone: "Asia/Kolkata" });
 
   return (
     <PageShell>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {kpis.map((item, index) => {
-          const Icon = item.icon;
-          return (
-            <motion.div
-              key={item.label}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.04 }}
-            >
-              <Card className="overflow-hidden">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-[var(--admin-muted)]">
-                        {item.label}
-                      </p>
-                      <p className="mt-3 font-display text-3xl font-semibold">
-                        {item.value}
-                      </p>
-                    </div>
-                    <div className="grid h-11 w-11 place-items-center rounded-[8px] bg-[var(--admin-soft)] text-[var(--admin-primary)]">
-                      <Icon size={21} />
-                    </div>
-                  </div>
-                  <div className="mt-5 h-1.5 rounded-full bg-[var(--admin-soft)]">
-                    <div
-                      className="h-full rounded-full bg-[var(--admin-primary)]"
-                      style={{ width: `${60 + index * 9}%` }}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          );
-        })}
-      </div>
-
-      <div className="mt-5 grid gap-5 xl:grid-cols-[1.35fr_0.95fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Watch activity over last 30 days</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80 w-full min-w-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data?.viewsOverTime || []}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="var(--admin-border)"
-                  />
-                  <XAxis
-                    dataKey="date"
-                    stroke="var(--admin-muted)"
-                    fontSize={12}
-                  />
-                  <YAxis stroke="var(--admin-muted)" fontSize={12} />
-                  <Tooltip />
-                  <Line
-                    type="monotone"
-                    dataKey="views"
-                    stroke="var(--admin-primary)"
-                    strokeWidth={3}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Active Subscribers List Card - Pink, White & Pink Theme */}
-        <Card className="flex flex-col justify-between overflow-hidden border border-pink-500/25 bg-[var(--admin-surface)] shadow-[0_10px_35px_rgba(236,63,111,0.08)]">
-          <CardHeader className="pb-3 border-b border-pink-500/15 bg-gradient-to-r from-pink-500/10 via-pink-500/[0.03] to-transparent">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-tr from-[#ec3f6f] to-[#ff6b95] text-white shadow-[0_4px_14px_rgba(236,63,111,0.35)] shrink-0">
-                  <Crown size={19} />
-                </div>
-                <div>
-                  <CardTitle className="text-base font-bold text-[var(--admin-foreground)] flex items-center gap-2">
-                    Active Subscribers
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#ec3f6f] text-white">
-                      Live
-                    </span>
-                  </CardTitle>
-                  <p className="text-[11px] text-[var(--admin-muted)] mt-0.5">
-                    Recent members with active subscription plans
-                  </p>
-                </div>
-              </div>
-              <Link
-                href="/admin/subscribers"
-                className="flex items-center gap-1 text-xs font-bold text-[#ec3f6f] hover:text-[#d42c5b] bg-pink-50 dark:bg-pink-950/40 border border-pink-200 dark:border-pink-500/30 px-3 py-1.5 rounded-full transition-all hover:shadow-sm"
-              >
-                <span>View all</span>
-                <ChevronRight size={13} />
-              </Link>
-            </div>
-          </CardHeader>
-
-          <CardContent className="p-4 flex-1 flex flex-col justify-between">
-            {subscribersLoading ? (
-              <div className="flex items-center justify-center min-h-[260px]">
-                <PinkLoader className="min-h-[160px]" />
-              </div>
-            ) : subscribers.length === 0 ? (
-              <div className="flex flex-col items-center justify-center text-center p-8 min-h-[260px] rounded-xl border border-dashed border-pink-500/20 bg-pink-500/[0.02]">
-                <div className="grid h-12 w-12 place-items-center rounded-full bg-pink-500/10 text-[#ec3f6f] mb-3">
-                  <Users size={22} />
-                </div>
-                <p className="font-semibold text-sm text-[var(--admin-foreground)]">
-                  No active subscribers yet
-                </p>
-                <p className="text-xs text-[var(--admin-muted)] max-w-xs mt-1">
-                  When users purchase subscriptions through Razorpay, their active profiles will show here.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 admin-modal-scroll">
-                {subscribers.slice(0, 6).map((sub, idx) => {
-                  const displayName = sub.name || sub.userName || sub.userId?.name || sub.phone || sub.userId?.phone || "Subscriber";
-                  const displayId = sub.email || sub.phone || sub.userId?.phone || sub.userId?.email || "";
-                  const planTitle = sub.planName || sub.plan || sub.planId?.name || "Premium";
-                  const initial = (displayName || "S").charAt(0).toUpperCase();
-                  const end = sub.endDate ? formatDate(sub.endDate) : "Active";
-
-                  return (
-                    <div
-                      key={sub.id || sub._id || idx}
-                      className="group flex items-center justify-between p-2.5 rounded-xl border border-pink-500/15 bg-white/60 dark:bg-slate-900/40 hover:bg-pink-500/[0.06] hover:border-pink-500/35 transition-all duration-200"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-tr from-[#ec3f6f] to-[#ff7597] text-white font-bold text-xs shadow-[0_2px_8px_rgba(236,63,111,0.25)] shrink-0">
-                          {initial}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-[var(--admin-foreground)] truncate max-w-[150px] group-hover:text-[#ec3f6f] transition-colors">
-                            {displayName}
-                          </p>
-                          <p className="text-[10px] text-[var(--admin-muted)] truncate max-w-[150px] font-mono">
-                            {displayId}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-pink-500/15 text-[#ec3f6f] border border-pink-500/30">
-                          {planTitle}
-                        </span>
-                        <p className="text-[9px] text-[var(--admin-muted)] mt-0.5">
-                          Expires: {end}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-
-          <div className="border-t border-pink-500/15 bg-gradient-to-r from-pink-500/[0.08] via-pink-500/[0.03] to-transparent px-5 py-3 flex items-center justify-between text-xs">
-            <span className="font-semibold text-[var(--admin-foreground)] flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-[#ec3f6f] animate-pulse" />
-              Total Active:{" "}
-              <strong className="text-[#ec3f6f]">
-                {stats.activeSubscriptions || subscribers.length || 0}
-              </strong>
-            </span>
-            <Link
-              href="/admin/subscribers"
-              className="text-[#ec3f6f] hover:underline font-bold text-[11px] flex items-center gap-0.5"
-            >
-              Manage all →
-            </Link>
+      <div className="tvk-dashboard space-y-6">
+        <section className="tvk-dashboard-hero flex flex-wrap items-end justify-between gap-5 rounded-2xl border border-[var(--admin-border)] p-5 sm:p-8">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-[var(--admin-primary)]">TVK Studio</p>
+            <h1 className="text-3xl font-semibold sm:text-4xl">Dashboard</h1>
+            <p className="mt-2 text-sm text-[var(--admin-muted)]">Manage your catalog and track viewing activity.</p>
           </div>
-        </Card>
-      </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={refresh} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</Button>
+            {canView("series.create") && (
+              <Button asChild variant="outline"><Link href="/admin/series/new"><Plus size={16} /> Add Series</Link></Button>
+            )}
+            {canUploadVideo(admin) && (
+              <Button asChild className="tvk-upload-action"><Link href="/admin/movies/new"><Plus size={16} /> Add Movie</Link></Button>
+            )}
+          </div>
+        </section>
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_1fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Episodes added over last 30 days</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80 w-full min-w-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data?.viewsOverTime || []}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="var(--admin-border)"
-                  />
-                  <XAxis
-                    dataKey="date"
-                    stroke="var(--admin-muted)"
-                    fontSize={12}
-                  />
-                  <YAxis stroke="var(--admin-muted)" fontSize={12} />
-                  <Tooltip />
-                  <Area
-                    type="monotone"
-                    dataKey="episodes"
-                    stroke="var(--admin-accent)"
-                    fill="var(--admin-accent)"
-                    fillOpacity={0.16}
-                    strokeWidth={3}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+        <section aria-label="Catalog totals" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {metrics.map(({ label, value, icon: Icon, href }) => {
+            const tile = <>
+              <Icon size={19} className="mb-4 text-[var(--admin-primary)]" aria-hidden="true" />
+              <p className="text-sm text-[var(--admin-muted)]">{label}</p>
+              <p className="mt-1 text-3xl font-semibold tabular-nums">{numberFormat.format(value)}</p>
+            </>;
+            const style = "rounded-xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4 sm:p-5";
+            return href ? <Link key={label} href={href} className={`${style} transition-colors hover:border-[var(--admin-primary)]`}>{tile}</Link>
+              : <div key={label} className={style}>{tile}</div>;
+          })}
+        </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Top 5 most-watched series</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {data?.topSeries?.length > 0 ? (
-                data.topSeries.map((series, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-3 rounded-lg border border-[var(--admin-border)] bg-[var(--admin-surface)]"
-                  >
-                    <span className="font-semibold text-sm">
-                      {series.title}
-                    </span>
-                    <span className="text-xs bg-[var(--admin-soft)] px-2 py-1 rounded font-bold text-[var(--admin-accent)]">
-                      {series.views} Views
-                    </span>
+        <div className="grid items-start gap-5 xl:grid-cols-[1.35fr_1fr]">
+          <Card>
+            <CardHeader><CardTitle>Recently updated titles</CardTitle></CardHeader>
+            <CardContent>
+              {data.recentTitles.length ? (
+                <ul className="divide-y divide-[var(--admin-border)]">
+                  {data.recentTitles.map((item) => {
+                    const isMovie = item.type === "movie";
+                    const canEdit = isMovie ? canUploadVideo(admin) : canView("series.edit");
+                    const href = `/admin/${isMovie ? "movies" : "series"}/${item.id}/edit`;
+                    return (
+                      <li key={item.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                        <div className="grid h-12 w-10 shrink-0 place-items-center overflow-hidden rounded-md bg-[var(--admin-soft)] text-[var(--admin-primary)]">
+                          {item.artworkUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={item.artworkUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
+                          ) : isMovie ? <Film size={17} aria-hidden="true" /> : <Tv size={17} aria-hidden="true" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          {canEdit ? <Link href={href} className="block truncate font-semibold hover:text-[var(--admin-primary)]">{item.title}</Link>
+                            : <p className="truncate font-semibold">{item.title}</p>}
+                          <p className="text-xs text-[var(--admin-muted)]">
+                            {isMovie ? "Movie" : "Series"}{item.updatedAt ? ` · ${dateLabel.format(new Date(item.updatedAt))}` : ""}
+                          </p>
+                        </div>
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${item.status === "published" ? "bg-emerald-500/15 text-emerald-700 tvk-dashboard-published" : "bg-[var(--admin-soft)] text-[var(--admin-muted)]"}`}>
+                          {{ published: "Published", draft: "Draft", coming_soon: "Coming soon" }[item.status]}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : <EmptyState icon={Film} title="No titles yet" description="Add a movie or series to start your catalog." />}
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-5">
+            <Card>
+              <CardHeader><CardTitle>Viewing activity</CardTitle></CardHeader>
+              <CardContent>
+                <p className="text-3xl font-semibold tabular-nums">{numberFormat.format(totalViews)}</p>
+                <p className="mt-1 text-sm text-[var(--admin-muted)]">Recorded views in the past 30 days</p>
+                {totalViews > 0 ? (
+                  <div className="mt-5 grid h-24 grid-flow-col auto-cols-fr items-end gap-1" role="img" aria-label={`${totalViews} recorded views over 30 days`}>
+                    {activity.map(({ date, views }) => (
+                      <div key={date} title={`${date}: ${views}`} className="min-h-px rounded-t bg-[var(--admin-primary)]"
+                        style={{ height: `${views / maxViews * 100}%` }} />
+                    ))}
                   </div>
-                ))
-              ) : (
-                <EmptyState icon={Tv} title="No series found" description="" />
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                ) : <p className="mt-5 rounded-lg bg-[var(--admin-soft)] p-3 text-sm text-[var(--admin-muted)]">No viewing activity recorded yet.</p>}
+                {canView("analytics") && <Link className="mt-4 inline-block text-sm font-semibold text-[var(--admin-primary)]" href="/admin/analytics">View analytics</Link>}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle>Audience</CardTitle></CardHeader>
+              <CardContent className="grid grid-cols-2 gap-4">
+                <div><p className="text-2xl font-semibold tabular-nums">{numberFormat.format(stats.totalUsers)}</p><p className="text-sm text-[var(--admin-muted)]">Users</p></div>
+                <div><p className="text-2xl font-semibold tabular-nums">{numberFormat.format(stats.activeSubscriptions)}</p><p className="text-sm text-[var(--admin-muted)]">Active subscriptions</p></div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
-
-      <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_1fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Episodes by series</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80 w-full min-w-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data?.episodesBySeries || []}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="var(--admin-border)"
-                  />
-                  <XAxis
-                    dataKey="title"
-                    stroke="var(--admin-muted)"
-                    fontSize={12}
-                  />
-                  <YAxis stroke="var(--admin-muted)" fontSize={12} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar
-                    dataKey="episodes"
-                    fill="var(--admin-primary)"
-                    radius={[6, 6, 0, 0]}
-                  />
-                  <Bar
-                    dataKey="seasons"
-                    fill="var(--admin-accent)"
-                    radius={[6, 6, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Top 5 most-watched episodes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {data?.topEpisodes?.length > 0 ? (
-                data.topEpisodes.map((episode, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-3 rounded-lg border border-[var(--admin-border)] bg-[var(--admin-surface)]"
-                  >
-                    <span className="font-semibold text-sm truncate max-w-[70%]">
-                      {episode.title}
-                    </span>
-                    <span className="text-xs bg-[var(--admin-soft)] px-2 py-1 rounded font-bold text-[var(--admin-accent)] shrink-0">
-                      {episode.views} Views
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <EmptyState
-                  icon={PlayCircle}
-                  title="No episodes found"
-                  description=""
-                />
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="mt-5">
-        <CardHeader>
-          <CardTitle>Recent series</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveTable
-            columns={["Series title", "Status", "Created date", "Views"]}
-            rows={(data?.recentUploads || []).map((video) => [
-              <Link
-                key="title"
-                href="/admin/series"
-                className="font-semibold hover:text-[var(--admin-primary)]"
-              >
-                {video.title}
-              </Link>,
-              <StatusBadge key="status" status={video.status} />,
-              formatDate(video.uploadDate),
-              numberFormat.format(video.views || 0),
-            ])}
-            empty="No series yet"
-          />
-        </CardContent>
-      </Card>
     </PageShell>
   );
 }
@@ -2363,1348 +2079,6 @@ function Pagination({ pagination, setPage }) {
         </Button>
       </div>
     </div>
-  );
-}
-
-function UploadModal({ onUploaded, notify, categories = [] }) {
-  const categoryOptions = categories.length
-    ? categories
-    : ["Drama", "Comedy", "Action", "Family", "Kids", "Romance", "Thriller"];
-  const [open, setOpen] = useState(false);
-  const [file, setFile] = useState(null);
-  const [thumbnail, setThumbnail] = useState(null);
-  const [dragging, setDragging] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [speed, setSpeed] = useState("");
-  const [eta, setEta] = useState("");
-  const [stage, setStage] = useState("idle");
-  const [qualityStatus, setQualityStatus] = useState([
-    { quality: "360p", status: "queued" },
-    { quality: "480p", status: "queued" },
-    { quality: "720p", status: "queued" },
-    { quality: "1080p", status: "queued" },
-  ]);
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    category: categoryOptions[0] || "Drama",
-    tags: "",
-    pricing: "free",
-    scheduledPublishAt: "",
-  });
-
-  function onDrop(event) {
-    event.preventDefault();
-    setDragging(false);
-    const dropped = event.dataTransfer.files?.[0];
-    if (dropped) setFile(dropped);
-  }
-
-  async function uploadThumbnail() {
-    if (!thumbnail) return "";
-    const data = new FormData();
-    data.append("file", thumbnail);
-    data.append("folder", "admin-thumbnails");
-    const response = await fetch("/api/upload", { method: "POST", body: data });
-    const payload = await readJsonResponse(response);
-    if (!response.ok || !payload.success)
-      throw new Error(payload.message || "Thumbnail upload failed");
-    return payload.url;
-  }
-
-  async function handleSubmit(event) {
-    event.preventDefault();
-    setProgress(0);
-    setStage(file ? "uploading" : "saving");
-
-    try {
-      const thumbnailUrl = await uploadThumbnail();
-      const metadata = {
-        ...form,
-        thumbnailUrl,
-      };
-
-      if (!file) {
-        await apiFetch("/api/admin/videos", {
-          method: "POST",
-          body: JSON.stringify({
-            ...metadata,
-            genres: [form.category],
-            tags: form.tags,
-            transcodingStatus: "live",
-          }),
-        });
-        notify("Video metadata created");
-        setOpen(false);
-        onUploaded();
-        return;
-      }
-
-      if (!file.type.startsWith("video/")) {
-        throw new Error("Only video files are supported");
-      }
-
-      const init = await apiFetch("/api/admin/videos/upload", {
-        method: "POST",
-        body: JSON.stringify({
-          action: "initiate",
-          fileName: file.name,
-          fileSize: file.size,
-          contentType: file.type,
-        }),
-      });
-
-      const totalParts = Math.ceil(file.size / init.partSize);
-      const parts = [];
-      const startedAt = performance.now();
-
-      for (let partNumber = 1; partNumber <= totalParts; partNumber += 1) {
-        const start = (partNumber - 1) * init.partSize;
-        const end = Math.min(start + init.partSize, file.size);
-        const chunk = file.slice(start, end);
-        const signed = await apiFetch("/api/admin/videos/upload", {
-          method: "POST",
-          body: JSON.stringify({
-            action: "sign-part",
-            key: init.key,
-            uploadId: init.uploadId,
-            partNumber,
-          }),
-        });
-
-        const uploadResponse = await fetch(signed.url, {
-          method: "PUT",
-          body: chunk,
-        });
-
-        if (!uploadResponse.ok) {
-          throw new Error(
-            "S3 part upload failed. Check bucket CORS and permissions.",
-          );
-        }
-
-        const loaded = end;
-        const elapsed = (performance.now() - startedAt) / 1000;
-        const bytesPerSecond = loaded / Math.max(elapsed, 0.1);
-        const remaining = (file.size - loaded) / bytesPerSecond;
-        setProgress(Math.round((loaded / file.size) * 100));
-        setSpeed(`${(bytesPerSecond / 1024 / 1024).toFixed(1)} MB/s`);
-        setEta(`${Math.max(1, Math.round(remaining))}s remaining`);
-        parts.push({
-          PartNumber: partNumber,
-          ETag: uploadResponse.headers.get("ETag")?.replaceAll('"', ""),
-        });
-      }
-
-      if (parts.some((part) => !part.ETag)) {
-        throw new Error(
-          "S3 did not expose ETag. Add ETag to bucket CORS ExposeHeaders.",
-        );
-      }
-
-      setStage("processing");
-      setQualityStatus((current) =>
-        current.map((item, index) => ({
-          ...item,
-          status: index < 2 ? "ready" : "processing",
-        })),
-      );
-
-      const complete = await apiFetch("/api/admin/videos/upload", {
-        method: "POST",
-        body: JSON.stringify({
-          action: "complete",
-          key: init.key,
-          uploadId: init.uploadId,
-          parts,
-          fileName: file.name,
-          fileSize: file.size,
-          contentType: file.type,
-          metadata,
-        }),
-      });
-
-      setStage("thumbnails");
-      setTimeout(() => {
-        setQualityStatus((current) =>
-          current.map((item) => ({ ...item, status: "ready" })),
-        );
-        setStage("published");
-      }, 900);
-
-      notify(`Upload queued: ${complete.video.title}`);
-      setTimeout(() => {
-        setOpen(false);
-        onUploaded();
-      }, 1200);
-    } catch (error) {
-      setStage("failed");
-      notify(error.message, "error");
-    }
-  }
-
-  const steps = [
-    { key: "uploading", label: "Uploading" },
-    { key: "processing", label: "Processing / Transcoding" },
-    { key: "thumbnails", label: "Generating Thumbnails" },
-    { key: "published", label: "Published / Live" },
-  ];
-  const currentIndex = Math.max(
-    0,
-    steps.findIndex((item) => item.key === stage),
-  );
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <UploadCloud size={18} />
-          Upload Video
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-5xl w-[min(1080px,calc(100vw-32px))]">
-        <form onSubmit={handleSubmit} className="flex flex-col h-full max-h-[92vh]">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold font-display text-[var(--admin-foreground)]">
-              Upload Video
-            </DialogTitle>
-            <DialogDescription>
-              S3 multipart upload with live upload speed, ETA and transcoding status tracking.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogBody>
-            <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-          <div>
-            <label
-              onDragOver={(event) => {
-                event.preventDefault();
-                setDragging(true);
-              }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={onDrop}
-              className={cn(
-                "grid min-h-64 cursor-pointer place-items-center rounded-[8px] border border-dashed p-6 text-center transition",
-                dragging
-                  ? "border-[var(--admin-primary)] bg-[var(--admin-soft)]"
-                  : "border-[var(--admin-border)]",
-              )}
-            >
-              <input
-                type="file"
-                accept="video/*"
-                className="sr-only"
-                onChange={(event) => setFile(event.target.files?.[0] || null)}
-              />
-              <div>
-                <UploadCloud
-                  className="mx-auto text-[var(--admin-primary)]"
-                  size={38}
-                />
-                <p className="mt-3 font-semibold">
-                  {file ? file.name : "Drop video file here"}
-                </p>
-                <p className="mt-1 text-sm text-[var(--admin-muted)]">
-                  Supports large files using 10MB S3 multipart chunks.
-                </p>
-              </div>
-            </label>
-
-            {stage !== "idle" ? (
-              <div className="mt-5 rounded-[8px] border border-[var(--admin-border)] p-4">
-                <div className="mb-3 flex items-center justify-between text-sm">
-                  <span className="font-semibold">Upload progress</span>
-                  <span className="text-[var(--admin-muted)]">{progress}%</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-[var(--admin-soft)]">
-                  <div
-                    className="h-full rounded-full bg-[var(--admin-primary)] transition-all"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-                <div className="mt-3 flex justify-between text-xs text-[var(--admin-muted)]">
-                  <span>{speed || "Preparing upload"}</span>
-                  <span>{eta}</span>
-                </div>
-              </div>
-            ) : null}
-
-            <div className="mt-5 space-y-3">
-              {steps.map((step, index) => {
-                const complete = stage === "published" || index < currentIndex;
-                const active =
-                  index === currentIndex &&
-                  stage !== "failed" &&
-                  stage !== "idle";
-                return (
-                  <div
-                    key={step.key}
-                    className="flex items-center gap-3 text-sm"
-                  >
-                    <div
-                      className={cn(
-                        "grid h-8 w-8 place-items-center rounded-full border",
-                        complete
-                          ? "border-emerald-500 bg-emerald-500 text-white"
-                          : active
-                            ? "border-[var(--admin-primary)] text-[var(--admin-primary)]"
-                            : "border-[var(--admin-border)] text-[var(--admin-muted)]",
-                      )}
-                    >
-                      {complete ? (
-                        <Check size={15} />
-                      ) : active ? (
-                        <Loader2 className="animate-spin" size={15} />
-                      ) : (
-                        index + 1
-                      )}
-                    </div>
-                    <span className={active ? "font-semibold" : ""}>
-                      {step.label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-5 grid grid-cols-2 gap-2">
-              {qualityStatus.map((item) => (
-                <div
-                  key={item.quality}
-                  className="rounded-[8px] border border-[var(--admin-border)] p-3 text-sm"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold">{item.quality}</span>
-                    <StatusBadge
-                      status={
-                        item.status === "ready"
-                          ? "Live"
-                          : item.status === "failed"
-                            ? "Failed"
-                            : "Processing"
-                      }
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid gap-4">
-            <label className="text-sm font-semibold">
-              Title
-              <Input
-                required
-                className="mt-2"
-                value={form.title}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    title: event.target.value,
-                  }))
-                }
-              />
-            </label>
-            <label className="text-sm font-semibold">
-              Description
-              <Textarea
-                className="mt-2"
-                value={form.description}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    description: event.target.value,
-                  }))
-                }
-              />
-            </label>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="text-sm font-semibold">
-                Category
-                <Select
-                  className="mt-2"
-                  value={form.category}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      category: event.target.value,
-                    }))
-                  }
-                >
-                  {categoryOptions.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-              <label className="text-sm font-semibold">
-                Pricing
-                <Select
-                  className="mt-2"
-                  value={form.pricing}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      pricing: event.target.value,
-                    }))
-                  }
-                >
-                  <option value="free">Free</option>
-                  <option value="premium">Premium</option>
-                </Select>
-              </label>
-            </div>
-            <label className="text-sm font-semibold">
-              Tags
-              <Input
-                className="mt-2"
-                placeholder="thriller, family, telugu"
-                value={form.tags}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    tags: event.target.value,
-                  }))
-                }
-              />
-            </label>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <ImageUploadField
-                  label="Thumbnail Artwork"
-                  file={thumbnail}
-                  onFileChange={setThumbnail}
-                  aspectRatio="16/9"
-                />
-              </div>
-              <label className="text-sm font-semibold">
-                Scheduled publish date
-                <Input
-                  className="mt-2"
-                  type="datetime-local"
-                  value={form.scheduledPublishAt}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      scheduledPublishAt: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-            </div>
-            {stage === "failed" ? (
-              <div className="rounded-[8px] border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-                Upload failed. Retry after checking S3 bucket CORS, especially
-                `ETag` exposed headers.
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </DialogBody>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              disabled={["uploading", "processing", "thumbnails"].includes(
-                stage,
-              )}
-            >
-              {file ? "Start multipart upload" : "Save metadata"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function BulkUploadView({ data, loading, notify, refresh }) {
-  const [files, setFiles] = useState([]);
-  const [dragging, setDragging] = useState(false);
-  const [selectedCategories, setSelectedCategories] = useState([]);
-  const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState({});
-
-  const categories = data?.categories || [];
-
-  function toggleCategory(catId) {
-    setSelectedCategories((current) =>
-      current.includes(catId)
-        ? current.filter((id) => id !== catId)
-        : [...current, catId],
-    );
-  }
-
-  function onDrop(event) {
-    event.preventDefault();
-    setDragging(false);
-    const dropped = Array.from(event.dataTransfer.files || []);
-    setFiles((current) => [
-      ...current,
-      ...dropped.filter((f) => f.type.startsWith("video/")),
-    ]);
-  }
-
-  async function uploadBatch() {
-    if (!files.length || !selectedCategories.length) {
-      notify("Select files and at least one category", "error");
-      return;
-    }
-
-    setUploading(true);
-    try {
-      // Upload files in parallel (4 concurrent uploads)
-      const uploadPromises = files.map((file, idx) =>
-        uploadFileOptimized(file, idx, files.length),
-      );
-
-      await Promise.all(uploadPromises);
-      setFiles([]);
-      setProgress({});
-      setSelectedCategories([]);
-      refresh();
-      notify(
-        `🚀 Batch complete: ${files.length} video(s) in ${selectedCategories.length} categor${selectedCategories.length === 1 ? "y" : "ies"}`,
-      );
-    } catch (error) {
-      notify(error.message, "error");
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function uploadFileOptimized(file, idx, totalFiles) {
-    const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
-    const MAX_CONCURRENT_PARTS = 4; // Upload 4 parts in parallel
-
-    try {
-      setProgress((current) => ({ ...current, [idx]: 0 }));
-
-      // Initiate multipart upload
-      const init = await apiFetch("/api/admin/videos/upload", {
-        method: "POST",
-        body: JSON.stringify({
-          action: "initiate",
-          fileName: file.name,
-          fileSize: file.size,
-          contentType: file.type,
-        }),
-      });
-
-      const totalParts = Math.ceil(file.size / CHUNK_SIZE);
-      const parts = [];
-
-      // Split into batches of concurrent parts
-      for (
-        let batchStart = 1;
-        batchStart <= totalParts;
-        batchStart += MAX_CONCURRENT_PARTS
-      ) {
-        const batchEnd = Math.min(
-          batchStart + MAX_CONCURRENT_PARTS - 1,
-          totalParts,
-        );
-        const batchPromises = [];
-
-        for (
-          let partNumber = batchStart;
-          partNumber <= batchEnd;
-          partNumber += 1
-        ) {
-          batchPromises.push(
-            (async () => {
-              const start = (partNumber - 1) * CHUNK_SIZE;
-              const end = Math.min(start + CHUNK_SIZE, file.size);
-              const chunk = file.slice(start, end);
-
-              const signed = await apiFetch("/api/admin/videos/upload", {
-                method: "POST",
-                body: JSON.stringify({
-                  action: "sign-part",
-                  key: init.key,
-                  uploadId: init.uploadId,
-                  partNumber,
-                }),
-              });
-
-              const uploadResponse = await fetch(signed.url, {
-                method: "PUT",
-                body: chunk,
-              });
-
-              if (!uploadResponse.ok) throw new Error("S3 upload failed");
-
-              parts[partNumber - 1] = {
-                PartNumber: partNumber,
-                ETag: uploadResponse.headers.get("ETag")?.replaceAll('"', ""),
-              };
-
-              const completedParts = parts.filter(Boolean).length;
-              const pct = Math.round(
-                ((completedParts / totalParts) * 100 + idx * 100) / totalFiles,
-              );
-              setProgress((current) => ({ ...current, [idx]: pct }));
-            })(),
-          );
-        }
-
-        await Promise.all(batchPromises);
-      }
-
-      const selectedCategoryDetails = selectedCategories.map((catId) => {
-        const category = categories.find((cat, idx) => {
-          const id =
-            typeof cat === "string" ? cat : String(cat._id || cat.id || idx);
-          return id === catId;
-        });
-
-        return {
-          id: catId,
-          name:
-            typeof category === "string"
-              ? category
-              : category?.name || category?.slug || catId,
-        };
-      });
-
-      const firstCategory = selectedCategoryDetails[0];
-
-      await apiFetch("/api/admin/videos/upload", {
-        method: "POST",
-        body: JSON.stringify({
-          action: "complete",
-          key: init.key,
-          uploadId: init.uploadId,
-          parts: parts.filter(Boolean),
-          fileName: file.name,
-          fileSize: file.size,
-          contentType: file.type,
-          metadata: {
-            title: file.name.replace(/\.[^/.]+$/, ""),
-            category: firstCategory.name,
-            description: "",
-            pricing: "free",
-          },
-        }),
-      });
-
-      // Create entries for remaining categories (reference same S3 file)
-      if (selectedCategoryDetails.length > 1) {
-        for (
-          let catIdx = 1;
-          catIdx < selectedCategoryDetails.length;
-          catIdx += 1
-        ) {
-          const category = selectedCategoryDetails[catIdx];
-
-          await apiFetch("/api/admin/videos/upload", {
-            method: "POST",
-            body: JSON.stringify({
-              action: "create-content",
-              key: init.key,
-              uploadId: init.uploadId,
-              fileName: file.name,
-              fileSize: file.size,
-              contentType: file.type,
-              metadata: {
-                title: file.name.replace(/\.[^/.]+$/, ""),
-                category: category.name,
-                description: "",
-                pricing: "free",
-              },
-            }),
-          });
-        }
-      }
-
-      notify(
-        `✓ ${file.name} → ${selectedCategoryDetails.length} categor${selectedCategoryDetails.length === 1 ? "y" : "ies"}`,
-      );
-    } catch (error) {
-      notify(`✗ ${file.name}: ${error.message}`, "error");
-      throw error;
-    }
-  }
-
-  return (
-    <PageShell>
-      <Card>
-        <CardHeader>
-          <CardTitle>Bulk Upload Videos</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-semibold mb-3">
-                Categories ({selectedCategories.length})
-              </label>
-              <div
-                className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 border border-[var(--admin-border)] rounded-[8px] bg-[var(--admin-soft)]"
-                style={{ maxHeight: "200px", overflowY: "auto" }}
-              >
-                {categories.length === 0 ? (
-                  <p className="text-xs text-[var(--admin-muted)] col-span-full">
-                    No categories available
-                  </p>
-                ) : (
-                  categories.map((cat, idx) => {
-                    const catId =
-                      typeof cat === "string"
-                        ? cat
-                        : String(cat._id || cat.id || idx);
-                    const catName =
-                      typeof cat === "string"
-                        ? cat
-                        : cat.name || cat.slug || cat;
-                    return (
-                      <label
-                        key={catId}
-                        className="flex items-center gap-2 cursor-pointer hover:bg-[var(--admin-border)] p-2 rounded"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedCategories.includes(catId)}
-                          onChange={() => toggleCategory(catId)}
-                          className="rounded"
-                        />
-                        <span className="text-sm">{catName}</span>
-                      </label>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold mb-2">
-                Files ({files.length})
-              </label>
-              <label className="flex items-center gap-2 px-4 py-2 border border-dashed border-[var(--admin-border)] rounded-[8px] cursor-pointer hover:bg-[var(--admin-soft)]">
-                <Plus size={18} />
-                <span>Add files</span>
-                <input
-                  type="file"
-                  multiple
-                  accept="video/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const newFiles = Array.from(e.target.files || []);
-                    setFiles((current) => [...current, ...newFiles]);
-                  }}
-                />
-              </label>
-            </div>
-          </div>
-
-          {files.length > 0 && (
-            <div
-              className="rounded-[8px] border border-[var(--admin-border)] p-4 max-h-96 overflow-y-auto"
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragging(true);
-              }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={onDrop}
-            >
-              <div className="space-y-3">
-                {files.map((file, idx) => (
-                  <div
-                    key={`${idx}-${file.name}`}
-                    className="rounded bg-[var(--admin-soft)] p-3"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium truncate">
-                        {file.name}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          setFiles((current) =>
-                            current.filter((_, i) => i !== idx),
-                          )
-                        }
-                      >
-                        <X size={16} />
-                      </Button>
-                    </div>
-                    {progress[idx] !== undefined && (
-                      <div className="h-1.5 rounded-full bg-[var(--admin-border)] overflow-hidden">
-                        <div
-                          className="h-full bg-[var(--admin-primary)] transition-all"
-                          style={{ width: `${progress[idx]}%` }}
-                        />
-                      </div>
-                    )}
-                    <p className="text-xs text-[var(--admin-muted)] mt-1">
-                      {(file.size / 1024 / 1024).toFixed(1)} MB ·{" "}
-                      {progress[idx] ?? 0}%
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setFiles([])}
-              disabled={uploading || !files.length}
-            >
-              Clear files
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setSelectedCategories([])}
-              disabled={uploading || !selectedCategories.length}
-            >
-              Clear categories
-            </Button>
-            <Button
-              onClick={uploadBatch}
-              disabled={
-                uploading || !files.length || !selectedCategories.length
-              }
-            >
-              {uploading ? (
-                <>
-                  <Loader2 className="animate-spin" size={17} />
-                  Uploading...
-                </>
-              ) : (
-                <>
-                  <UploadCloud size={17} />
-                  Upload to {selectedCategories.length} categor
-                  {selectedCategories.length === 1 ? "y" : "ies"}
-                </>
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </PageShell>
-  );
-}
-
-function VideosView({
-  data,
-  loading,
-  filters,
-  setFilters,
-  setPage,
-  refresh,
-  notify,
-}) {
-  const [selected, setSelected] = useState([]);
-  const videos = data?.videos || [];
-
-  async function bulkDelete() {
-    if (!selected.length || !confirm(`Delete ${selected.length} video(s)?`))
-      return;
-    await apiFetch("/api/admin/videos", {
-      method: "DELETE",
-      body: JSON.stringify({ ids: selected }),
-    });
-    setSelected([]);
-    notify("Selected videos deleted");
-    refresh();
-  }
-
-  return (
-    <PageShell>
-      <div className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <div className="grid gap-2 md:grid-cols-4">
-          <Input
-            placeholder="Search videos"
-            value={filters.search}
-            onChange={(event) =>
-              setFilters((current) => ({
-                ...current,
-                page: 1,
-                search: event.target.value,
-              }))
-            }
-          />
-          <Select
-            value={filters.status}
-            onChange={(event) =>
-              setFilters((current) => ({
-                ...current,
-                page: 1,
-                status: event.target.value,
-              }))
-            }
-          >
-            <option value="">All statuses</option>
-            {(data?.filters?.statuses || ["Processing", "Live", "Failed"]).map(
-              (status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ),
-            )}
-          </Select>
-          <Select
-            value={filters.category}
-            onChange={(event) =>
-              setFilters((current) => ({
-                ...current,
-                page: 1,
-                category: event.target.value,
-              }))
-            }
-          >
-            <option value="">All categories</option>
-            {(data?.filters?.categories || []).map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </Select>
-          <Input
-            type="date"
-            value={filters.date || ""}
-            onChange={(event) =>
-              setFilters((current) => ({
-                ...current,
-                date: event.target.value,
-              }))
-            }
-          />
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            disabled={!selected.length}
-            onClick={bulkDelete}
-          >
-            <Trash2 size={17} />
-            Delete
-          </Button>
-          <UploadModal
-            onUploaded={refresh}
-            notify={notify}
-            categories={data?.filters?.categories || []}
-          />
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Videos</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <PinkLoader className="min-h-96" />
-          ) : videos.length ? (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[980px] text-sm">
-                  <thead>
-                    <tr className="border-b border-[var(--admin-border)] text-left text-xs uppercase tracking-[0.12em] text-[var(--admin-muted)]">
-                      <th className="px-3 py-3">
-                        <input
-                          type="checkbox"
-                          checked={selected.length === videos.length}
-                          onChange={(event) =>
-                            setSelected(
-                              event.target.checked
-                                ? videos.map((video) => video.id)
-                                : [],
-                            )
-                          }
-                          aria-label="Select all videos"
-                        />
-                      </th>
-                      {[
-                        "Video title",
-                        "Duration",
-                        "Category",
-                        "Status",
-                        "Upload date",
-                        "Views",
-                        "Actions",
-                      ].map((head) => (
-                        <th key={head} className="px-3 py-3">
-                          {head}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {videos.map((video) => (
-                      <tr
-                        key={video.id}
-                        className="border-b border-[var(--admin-border)] hover:bg-[var(--admin-soft)]"
-                      >
-                        <td className="px-3 py-4">
-                          <input
-                            type="checkbox"
-                            checked={selected.includes(video.id)}
-                            onChange={(event) =>
-                              setSelected((current) =>
-                                event.target.checked
-                                  ? [...current, video.id]
-                                  : current.filter((id) => id !== video.id),
-                              )
-                            }
-                            aria-label={`Select ${video.title}`}
-                          />
-                        </td>
-                        <td className="px-3 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="grid h-12 w-16 shrink-0 place-items-center overflow-hidden rounded-[8px] bg-[var(--admin-soft)]">
-                              {video.thumbnailUrl ? (
-                                <img
-                                  src={video.thumbnailUrl}
-                                  alt=""
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <PlayCircle
-                                  className="text-[var(--admin-primary)]"
-                                  size={22}
-                                />
-                              )}
-                            </div>
-                            <div className="min-w-0">
-                              <Link
-                                href={`/admin/videos/${video.id}`}
-                                className="font-semibold hover:text-[var(--admin-primary)]"
-                              >
-                                {video.title}
-                              </Link>
-                              <p className="truncate text-xs text-[var(--admin-muted)]">
-                                {video.description}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-3 py-4">
-                          {video.duration
-                            ? `${Math.round(video.duration / 60)}m`
-                            : "-"}
-                        </td>
-                        <td className="px-3 py-4">{video.category}</td>
-                        <td className="px-3 py-4">
-                          <StatusBadge status={video.status} />
-                        </td>
-                        <td className="px-3 py-4">
-                          {formatDate(video.uploadDate)}
-                        </td>
-                        <td className="px-3 py-4">
-                          {numberFormat.format(video.views)}
-                        </td>
-                        <td className="px-3 py-4">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                aria-label={`Actions for ${video.title}`}
-                              >
-                                <MoreHorizontal size={18} />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                              <DropdownMenuItem asChild>
-                                <Link href={`/admin/videos/${video.id}`}>
-                                  <Pencil size={16} />
-                                  Edit details
-                                </Link>
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <Pagination pagination={data.pagination} setPage={setPage} />
-            </>
-          ) : (
-            <EmptyState
-              icon={FileVideo}
-              title="No videos match these filters"
-              description="Upload a video or clear the current filters to see your library."
-            />
-          )}
-        </CardContent>
-      </Card>
-    </PageShell>
-  );
-}
-
-function VideoDetailView({ data, loading, videoId, notify }) {
-  const router = useRouter();
-  const [form, setForm] = useState(data?.video || null);
-  const [pipeline, setPipeline] = useState(null);
-
-  useEffect(() => {
-    setForm(data?.video || null);
-  }, [data?.video]);
-
-  useEffect(() => {
-    if (!videoId) return;
-    let cancelled = false;
-    async function loadStatus() {
-      try {
-        const payload = await apiFetch(`/api/admin/videos/${videoId}/status`);
-        if (!cancelled) setPipeline(payload.pipeline);
-      } catch {
-        if (!cancelled) setPipeline(null);
-      }
-    }
-    loadStatus();
-    const interval = setInterval(loadStatus, 5000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [videoId]);
-
-  async function save() {
-    await apiFetch(`/api/admin/videos/${videoId}`, {
-      method: "PUT",
-      body: JSON.stringify({
-        ...form,
-        genres: Array.isArray(form.genres)
-          ? form.genres
-          : String(form.genres || "").split(","),
-        tags: Array.isArray(form.tags)
-          ? form.tags
-          : String(form.tags || "").split(","),
-      }),
-    });
-    notify("Video saved");
-  }
-
-  async function remove() {
-    if (!confirm("Delete this video permanently?")) return;
-    await apiFetch(`/api/admin/videos/${videoId}`, { method: "DELETE" });
-    notify("Video deleted");
-    router.replace("/admin/videos");
-  }
-
-  if (loading || !form) {
-    if (!loading && !form) {
-      return (
-        <PageShell>
-          <EmptyState
-            icon={FileVideo}
-            title="Video not found"
-            description="This video may have been deleted or the link is no longer valid."
-            action={
-              <Button asChild>
-                <Link href="/admin/videos">Back to videos</Link>
-              </Button>
-            }
-          />
-        </PageShell>
-      );
-    }
-
-    return (
-      <PageShell>
-        <PinkLoader className="min-h-[70vh]" />
-      </PageShell>
-    );
-  }
-
-  return (
-    <PageShell>
-      <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Edit metadata</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <Input
-              value={form.title || ""}
-              onChange={(event) =>
-                setForm({ ...form, title: event.target.value })
-              }
-            />
-            <Textarea
-              value={form.description || ""}
-              onChange={(event) =>
-                setForm({ ...form, description: event.target.value })
-              }
-            />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input
-                value={(form.genres || []).join(", ")}
-                onChange={(event) =>
-                  setForm({
-                    ...form,
-                    genres: event.target.value
-                      .split(",")
-                      .map((item) => item.trim())
-                      .filter(Boolean),
-                  })
-                }
-                placeholder="Genres"
-              />
-              <Input
-                value={(form.tags || []).join(", ")}
-                onChange={(event) =>
-                  setForm({
-                    ...form,
-                    tags: event.target.value
-                      .split(",")
-                      .map((item) => item.trim())
-                      .filter(Boolean),
-                  })
-                }
-                placeholder="Tags"
-              />
-              <Input
-                value={form.thumbnailUrl || ""}
-                onChange={(event) =>
-                  setForm({ ...form, thumbnailUrl: event.target.value })
-                }
-                placeholder="Thumbnail URL"
-              />
-              <Select
-                value={form.pricing || "free"}
-                onChange={(event) =>
-                  setForm({ ...form, pricing: event.target.value })
-                }
-              >
-                <option value="free">Free</option>
-                <option value="premium">Premium</option>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
-              <Button variant="danger" onClick={remove}>
-                <Trash2 size={17} />
-                Delete video
-              </Button>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                {form?.videoSource?.key || form?.hlsManifestUrl ? (
-                  <Button variant="secondary" asChild>
-                    <Link href={`/admin/watch/${videoId}`}>
-                      <Eye size={17} />
-                      Watch video
-                    </Link>
-                  </Button>
-                ) : null}
-                <Button onClick={save}>
-                  <Pencil size={17} />
-                  Save changes
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="space-y-5">
-          <Card>
-            <CardHeader>
-              <CardTitle>Transcoding status</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-4 flex items-center justify-between">
-                <StatusBadge
-                  status={
-                    pipeline?.status === "live"
-                      ? "Live"
-                      : pipeline?.status === "failed"
-                        ? "Failed"
-                        : "Processing"
-                  }
-                />
-                <span className="text-sm font-semibold">
-                  {pipeline?.progress || 0}%
-                </span>
-              </div>
-              <div className="h-2 rounded-full bg-[var(--admin-soft)]">
-                <div
-                  className="h-full rounded-full bg-[var(--admin-primary)] transition-all"
-                  style={{ width: `${pipeline?.progress || 0}%` }}
-                />
-              </div>
-              <div className="mt-5 space-y-2">
-                {(pipeline?.renditions || []).map((item) => (
-                  <div
-                    key={item.quality}
-                    className="flex items-center justify-between rounded-[8px] border border-[var(--admin-border)] p-3"
-                  >
-                    <span className="font-semibold">{item.quality}</span>
-                    <StatusBadge
-                      status={
-                        item.status === "ready"
-                          ? "Live"
-                          : item.status === "failed"
-                            ? "Failed"
-                            : "Processing"
-                      }
-                    />
-                  </div>
-                ))}
-              </div>
-              {pipeline?.error ? (
-                <div className="mt-4 rounded-[8px] border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-                  {pipeline.error}
-                  <Button className="mt-3" variant="outline" size="sm">
-                    <RefreshCcw size={16} />
-                    Retry
-                  </Button>
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Analytics</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-3">
-              {[
-                ["Views", data?.analytics?.views || 0],
-                [
-                  "Watch time",
-                  `${Math.round((data?.analytics?.watchTime || 0) / 60)}m`,
-                ],
-                ["Completion", `${data?.analytics?.completionRate || 0}%`],
-                ["Likes", data?.analytics?.likes || 0],
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  className="rounded-[8px] bg-[var(--admin-soft)] p-4"
-                >
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--admin-muted)]">
-                    {label}
-                  </p>
-                  <p className="mt-2 font-display text-2xl font-semibold">
-                    {value}
-                  </p>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Embed code</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <pre className="overflow-x-auto rounded-[8px] bg-[#071217] p-4 text-xs text-cyan-50">
-                {`<iframe src="${typeof window !== "undefined" ? window.location.origin : ""}/admin/watch/${videoId}" allowfullscreen></iframe>`}
-              </pre>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </PageShell>
   );
 }
 
@@ -4131,7 +2505,7 @@ function PlansTab({ data, loading, refresh, notify }) {
       </div>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent 
+        <DialogContent
           className="max-w-xl w-[min(640px,calc(100vw-32px))] overflow-hidden"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
@@ -6353,7 +4727,7 @@ function NotificationsView({ data, loading, refresh, notify }) {
       const result = await readJsonResponse(response);
       if (!response.ok || !result.success)
         throw new Error(result.message || "Save failed");
-      
+
       const countMsg = result.notifiedCount !== undefined ? ` (Sent to ${result.notifiedCount} user(s))` : "";
       notify(editing ? `Notification updated${countMsg}` : `Notification created${countMsg}`);
       setIsOpen(false);
@@ -6594,7 +4968,7 @@ function NotificationsView({ data, loading, refresh, notify }) {
                       <div className="flex items-center justify-between text-[10px] text-[var(--admin-muted)] font-semibold mb-1">
                         <span className="flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded-full bg-[var(--admin-accent)] block animate-pulse" />
-                          Chirpii App
+                          Tvk Ott App
                         </span>
                         <span>now</span>
                       </div>
@@ -6783,7 +5157,7 @@ function SettingsView({ settings, setSettings, notify, master = false }) {
   }
 
   const safe = {
-    platformName: form.platformName || "Chirpii Admin",
+    platformName: form.platformName || "TVK Admin",
     tagline: form.tagline || "",
     logoUrl: form.logoUrl || "",
     faviconUrl: form.faviconUrl || "",
@@ -7123,28 +5497,29 @@ export default function AdminApp({
   initialSettings,
   initialDashboardData,
   initialView,
-  videoId,
+  bannerId,
+  movieId,
+  seriesEditorId,
+  studioSection = "details",
 }) {
+  const loadsPageData =
+    initialView !== "content" &&
+    initialView !== "audit" &&
+    (initialView !== "series-editor" || Boolean(seriesEditorId)) &&
+    (initialView !== "movie-editor" || Boolean(movieId));
   const [admin] = useState(initialAdmin);
   const [settings, setSettings] = useState(initialSettings);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [data, setData] = useState(
     initialView === "dashboard" ? initialDashboardData : null,
   );
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(loadsPageData);
   const [routeLoading, setRouteLoading] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [toasts, setToasts] = useState([]);
   const [globalSearch, setGlobalSearch] = useState("");
-  const [videoFilters, setVideoFilters] = useState({
-    search: "",
-    status: "",
-    category: "",
-    date: "",
-    page: 1,
-  });
   const [userFilters, setUserFilters] = useState({
     search: "",
     plan: "",
@@ -7247,7 +5622,8 @@ export default function AdminApp({
   }, [settings, darkMode]);
 
   useEffect(() => {
-    // Silently pre-warm frequent admin menus in the background when browser is idle
+    // Avoid compiling unrelated routes together in the local dev server.
+    if (process.env.NODE_ENV !== "production") return;
     const idleWarm = setTimeout(() => {
       const frequentViews = [
         "series",
@@ -7272,8 +5648,6 @@ export default function AdminApp({
 
   function handleGlobalSearch(value) {
     setGlobalSearch(value);
-    if (initialView === "videos")
-      setVideoFilters((c) => ({ ...c, search: value, page: 1 }));
     if (initialView === "users")
       setUserFilters((c) => ({ ...c, search: value, page: 1 }));
     if (initialView === "subscribers")
@@ -7291,12 +5665,11 @@ export default function AdminApp({
       toast: true,
       position: "top-end",
       icon: type === "error" ? "error" : "success",
-      title: message,
+      titleText: String(message),
       showConfirmButton: false,
       timer: 3000,
       timerProgressBar: true,
-      background: "var(--admin-surface, #ffffff)",
-      color: "var(--admin-foreground, #0f172a)",
+      customClass: { popup: "tvk-alert" },
     });
   }
 
@@ -7336,23 +5709,12 @@ export default function AdminApp({
       };
     }
 
-    if (initialView === "content") {
+    if (!loadsPageData) {
       setLoading(false);
       setRouteLoading(false);
-      return () => {
-        cancelled = true;
-      };
+      return;
     }
-    if (initialView === "videos") {
-      Object.entries(videoFilters).forEach(([k, v]) => {
-        if (v && k !== "date") params.set(k, v);
-      });
-      url = `/api/admin/videos?${params.toString()}`;
-    } else if (initialView === "bulk-upload") {
-      url = "/api/admin/categories";
-    } else if (initialView === "video-detail") {
-      url = `/api/admin/videos/${videoId}`;
-    } else if (initialView === "users") {
+    if (initialView === "users") {
       Object.entries(userFilters).forEach(([k, v]) => {
         if (v) params.set(k, v);
       });
@@ -7387,9 +5749,12 @@ export default function AdminApp({
       initialView === "master-app-settings"
     ) {
       url = "/api/admin/settings";
+    } else if (initialView === "series-editor" || initialView === "series-preview") {
+      url = `/api/admin/series/${seriesEditorId}${initialView === "series-preview" ? "?preview=1" : ""}`;
+    } else if (initialView === "movie-editor" || initialView === "movie-preview") {
+      url = `/api/admin/movies/${movieId}${initialView === "movie-preview" ? "?preview=1" : ""}`;
     } else if (initialView === "movies") {
-      if (movieFilters.search) params.set("search", movieFilters.search);
-      params.set("page", movieFilters.page);
+      Object.entries(movieFilters).forEach(([key, value]) => { if (value) params.set(key, value); });
       url = `/api/admin/movies?${params.toString()}`;
     } else if (initialView === "series") {
       if (seriesFilters.search) params.set("search", seriesFilters.search);
@@ -7401,6 +5766,8 @@ export default function AdminApp({
       url = "/api/admin/series?limit=100";
     } else if (initialView === "bulk-episodes") {
       url = "/api/admin/series?limit=100";
+    } else if (initialView === "banner-editor") {
+      url = bannerId ? `/api/admin/banners/${bannerId}` : "/api/admin/banners?limit=1";
     } else if (initialView === "banners") {
       url = `/api/admin/banners?page=${bannerFilters.page}`;
     } else if (initialView === "coming-soon-admin") {
@@ -7450,8 +5817,9 @@ export default function AdminApp({
     };
   }, [
     initialView,
-    videoId,
-    videoFilters,
+    loadsPageData,
+    movieId,
+    seriesEditorId,
     userFilters,
     subscriberFilters,
     transactionFilters,
@@ -7464,29 +5832,38 @@ export default function AdminApp({
     comingSoonFilters,
     trailerFilters,
     bannerFilters,
+    bannerId,
     trendingFilters,
     blockbusterFilters,
     reloadKey,
   ]);
 
   const offsetClass = collapsed ? "lg:pl-[76px]" : "lg:pl-[220px]";
-  const title = pageTitles[initialView] || "Admin";
+  const studioSeries = seriesEditorId && data?.series?._id === seriesEditorId ? primaryCatalogDetails(data.series) : null;
+  const studioEpisodes = studioSeries ? data.episodes || [] : [];
+  const studioVideoCount = studioEpisodes.reduce((count, episode) => {
+    const sources = new Set((episode.languages || []).flatMap((language) =>
+      (language.videoFiles || []).map((file) => file.videoUrl || file.videoKey)
+    ).filter(Boolean));
+    if (!sources.size && episode.videoUrl) sources.add(episode.videoUrl);
+    return count + sources.size;
+  }, 0);
+  const title = initialView === "banner-editor" ? (bannerId ? "Edit Banner" : "Add Banner") : initialView === "movie-preview" ? "Movie View" : initialView === "series-preview" ? "Series View" : initialView === "series-editor" ? (seriesEditorId ? "Edit Series" : "Add Series") : initialView === "movie-editor" ? (movieId ? "Edit Movie" : "Add Movie") : pageTitles[initialView] || "Admin";
 
   const activeNavItem = navItems.find((n) => n.view === initialView);
-  const isAuthorized =
-    !activeNavItem ||
-    !activeNavItem.permission ||
-    admin?.role === "super_admin" ||
-    admin?.permissions?.includes(activeNavItem.permission);
+  const isAuthorized = activeNavItem?.uploadOnly
+    ? canUploadVideo(admin)
+    : !activeNavItem?.permission ||
+      admin?.role === "super_admin" ||
+      admin?.permissions?.includes(activeNavItem.permission);
 
   return (
-    <div className="min-h-screen bg-[var(--admin-background)] text-[var(--admin-foreground)]">
+    <div className="tvk-admin min-h-screen bg-[var(--admin-background)] text-[var(--admin-foreground)]">
       <FetchingBar active={loading || routeLoading} />
       <Sidebar
-        activeView={initialView}
+        activeView={initialView === "banner-editor" ? "banners" : ["movie-editor", "movie-preview"].includes(initialView) ? "movies" : ["series-editor", "series-preview"].includes(initialView) ? "series" : initialView}
         collapsed={collapsed}
         setCollapsed={setCollapsed}
-        settings={settings}
         admin={admin}
         mobileMenuOpen={mobileMenuOpen}
         setMobileMenuOpen={setMobileMenuOpen}
@@ -7494,7 +5871,7 @@ export default function AdminApp({
         setSelectedSeriesId={setSelectedSeriesId}
         selectedSeriesTitle={selectedSeriesTitle}
         setSelectedSeriesTitle={setSelectedSeriesTitle}
-        seriesList={data?.series || []}
+        seriesList={Array.isArray(data?.series) ? data.series : []}
         onNavigate={(targetView) => {
           beginRouteLoading(targetView);
           setMobileMenuOpen(false);
@@ -7506,7 +5883,7 @@ export default function AdminApp({
         admin={admin}
       />
       <div
-        className={cn("min-h-screen transition-all duration-300", offsetClass)}
+        className={cn("min-h-screen transition-[padding] duration-200 motion-reduce:transition-none", offsetClass)}
       >
         <Header
           title={title}
@@ -7533,41 +5910,7 @@ export default function AdminApp({
         ) : (
           <>
             {initialView === "dashboard" ? (
-              <DashboardView data={data} loading={loading} notify={notify} refresh={refresh} />
-            ) : null}
-            {initialView === "videos" ? (
-              <VideosView
-                data={data}
-                loading={loading}
-                filters={videoFilters}
-                setFilters={setVideoFilters}
-                setPage={(updater) =>
-                  setVideoFilters((c) => ({
-                    ...c,
-                    page:
-                      typeof updater === "function" ? updater(c.page) : updater,
-                  }))
-                }
-                refresh={refresh}
-                notify={notify}
-              />
-            ) : null}
-            {initialView === "bulk-upload" ? (
-              <BulkUploadView
-                data={data}
-                loading={loading}
-                notify={notify}
-                refresh={refresh}
-              />
-            ) : null}
-            {initialView === "video-detail" ? (
-              <VideoDetailView
-                key={data?.video?.id || videoId || "video-detail"}
-                data={data}
-                loading={loading}
-                videoId={videoId}
-                notify={notify}
-              />
+              <DashboardView data={data} loading={loading} admin={admin} refresh={refresh} />
             ) : null}
             {initialView === "users" ? (
               <UsersView
@@ -7703,8 +6046,25 @@ export default function AdminApp({
                 master
               />
             ) : null}
+            {initialView === "movie-preview" && (
+              <PageShell>{loading ? <PinkLoader /> : data?.movie ? <MovieView key={movieId} data={data} canEdit={canUploadVideo(admin)} />
+                : <EmptyState title="Movie unavailable" />}</PageShell>
+            )}
+            {initialView === "movie-editor" && (
+              movieId && loading ? (
+                <PageShell><PinkLoader /></PageShell>
+              ) : movieId && !data?.movie ? (
+                <PageShell>
+                  <EmptyState title="Movie unavailable" description="The movie could not be loaded."
+                    action={<Button asChild><Link href="/admin/movies">Back to Movies</Link></Button>} />
+                </PageShell>
+              ) : (
+                <MovieEditor key={movieId || "new"} editing={movieId ? data?.movie : null} media={data?.media} subtitles={data?.subtitles} onSaved={refresh} notify={notify} canEdit={canUploadVideo(admin)} />
+              )
+            )}
             {initialView === "movies" ? (
               <MoviesView
+                admin={admin}
                 data={data}
                 loading={loading}
                 filters={movieFilters}
@@ -7722,8 +6082,45 @@ export default function AdminApp({
                 notify={notify}
               />
             ) : null}
-            {initialView === "series" ? (
+            {initialView === "series-preview" && (
+              <PageShell>{loading ? <PinkLoader /> : data?.series ? <SeriesPreview key={seriesEditorId} data={data}
+                canEdit={admin?.role === "super_admin" || admin?.permissions?.includes("*") || admin?.permissions?.includes("series.edit")} />
+                : <EmptyState title="Series unavailable" />}</PageShell>
+            )}
+            {initialView === "series-editor" && seriesEditorId && studioSeries && (
+              <div className="mx-auto max-w-[1580px] px-4 pt-5 sm:px-6">
+                <Link href="/admin/series" className="text-sm text-[var(--admin-primary)]">Back to Series Library</Link>
+                <h1 className="mt-1 text-2xl font-semibold">{studioSeries.title}</h1>
+                <p className="mb-3 mt-1 text-sm text-[var(--admin-muted)]">
+                  Series Studio · {studioSeries.isActive === false ? "Draft" : "Published"} · {studioEpisodes.length} episodes · {studioVideoCount} saved video files
+                </p>
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--admin-border)] pb-4">
+                <nav aria-label="Series studio" className="flex flex-wrap gap-2">
+                  {[["details", "Details", "series.view"], ["seasons", "Seasons", "seasons.view"], ["episodes", "Episodes", "episodes.view"], ["bulk", "Bulk Episodes", "episodes.create"]].filter(([, , permission]) =>
+                    admin?.role === "super_admin" || admin?.permissions?.includes("*") || admin?.permissions?.includes(permission)
+                  ).map(([section, label]) => (
+                    <Button key={section} variant={studioSection === section ? "primary" : "outline"} asChild>
+                      <Link aria-current={studioSection === section ? "page" : undefined} href={`/admin/series/${seriesEditorId}/edit?section=${section}`}>{label}</Link>
+                    </Button>
+                  ))}
+                </nav>
+                <Button variant="outline" asChild><Link href={`/admin/series/${seriesEditorId}`}>View series</Link></Button>
+                </div>
+              </div>
+            )}
+            {initialView === "series-editor" && studioSection !== "details" && studioSeries && (() => {
+              const StudioView = { seasons: SeasonsView, episodes: EpisodesView, bulk: BulkEpisodesView }[studioSection];
+              return StudioView && <StudioView key={studioSection + seriesEditorId} studio data={{ series: [{ ...studioSeries, language: data.studioLanguages ?? studioSeries.language, uploadLanguages: data.uploadLanguages }] }}
+                loading={loading} refresh={refresh} notify={notify} selectedSeriesId={seriesEditorId}
+                selectedSeriesTitle={studioSeries.title} setSelectedSeriesId={() => {}} setSelectedSeriesTitle={() => {}} />;
+            })()}
+            {(initialView === "series" || (initialView === "series-editor" && studioSection === "details")) ? (
               <SeriesView
+                key={initialView + (seriesEditorId || "")}
+                editorMode={initialView === "series-editor"}
+                editorId={seriesEditorId}
+                canEdit={admin?.role === "super_admin" || admin?.permissions?.includes("*") ||
+                  admin?.permissions?.includes(seriesEditorId ? "series.edit" : "series.create")}
                 data={data}
                 loading={loading}
                 filters={seriesFilters}
@@ -7777,8 +6174,14 @@ export default function AdminApp({
                 setSelectedSeriesTitle={setSelectedSeriesTitle}
               />
             ) : null}
+            {initialView === "banner-editor" && <PageShell>
+              {loading ? <PinkLoader /> : bannerId && data?.banner?._id !== bannerId ? <EmptyState title="Banner unavailable" />
+                : <BannerEditor key={bannerId || "new"} banner={bannerId ? data.banner : null}
+                  nextOrder={(data?.banners?.[0]?.order ?? 0) + 1} notify={notify} />}
+            </PageShell>}
             {initialView === "banners" ? (
               <BannersView
+                admin={admin}
                 data={data}
                 loading={loading}
                 filters={bannerFilters}
@@ -7824,7 +6227,8 @@ export default function AdminApp({
               />
             ) : null}
             {initialView === "trailers-admin" ? (
-              <TrailersView
+              <TrailerLibrary
+                admin={admin}
                 data={data}
                 loading={loading}
                 filters={trailerFilters}
@@ -7892,6 +6296,7 @@ export default function AdminApp({
                 notify={notify}
               />
             ) : null}
+            {initialView === "audit" && <AuditView />}
             {initialView === "roles" ? (
               <RolesView initialAdmin={admin} notify={notify} />
             ) : null}
@@ -7913,6 +6318,7 @@ export default function AdminApp({
 
 // ─── ALL available permissions that can be toggled on a role ────────────────
 const ALL_PERMISSIONS = [
+  { key: "audit.view", label: "View Audit Log" },
   { key: "content", label: "Content Hub" },
   { key: "series", label: "Series" },
   { key: "users", label: "Users" },
@@ -8951,44 +7357,370 @@ function CmsView({ data, loading, refresh, notify }) {
   );
 }
 
-function MoviesView({
-  data,
-  loading,
-  filters,
-  setFilters,
-  setPage,
-  refresh,
-  notify,
-}) {
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
+function RecommendationThumbnail({ posterUrl }) {
+  return <div className="grid h-14 w-10 shrink-0 place-items-center overflow-hidden rounded bg-[var(--admin-soft)] text-[var(--admin-muted)]">
+    {posterUrl ? <img src={posterUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : <Film size={16} />}
+  </div>;
+}
+
+function RecommendationEditor({ type, sourceId, ids, setIds }) {
+  const [search, setSearch] = useState("");
+  const [matches, setMatches] = useState(null);
+  const [titles, setTitles] = useState({});
+  const [loadError, setLoadError] = useState("");
+  const [searchError, setSearchError] = useState("");
+  const resource = type === "movie" ? "movies" : "series";
+  const query = search.trim();
+  const missing = ids.filter((id) => !(id in titles)).join(",");
+
+  useEffect(() => {
+    if (!missing) return;
+    const controller = new AbortController();
+    const params = new URLSearchParams({ picker: "1", ids: missing });
+    fetch(`/api/admin/${resource}?${params}`, { signal: controller.signal })
+      .then(readJsonResponse).then((result) => {
+        if (!result.success) throw new Error(result.message || "Could not load saved selections.");
+        if (controller.signal.aborted) return;
+        const received = new Map(result[resource].map((item) => [item._id, item]));
+        setTitles((current) => ({ ...current, ...Object.fromEntries(missing.split(",").map((id) => [id, received.get(id) ?? null])) }));
+        setLoadError("");
+      }).catch((error) => { if (!controller.signal.aborted) setLoadError(error.message); });
+    return () => controller.abort();
+  }, [resource, missing]);
+
+  useEffect(() => {
+    if (!query) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams({ picker: "1", search: query });
+      fetch(`/api/admin/${resource}?${params}`, { signal: controller.signal })
+        .then(readJsonResponse).then((result) => {
+          if (!result.success) throw new Error(result.message || "Could not search titles.");
+          if (!controller.signal.aborted) setMatches({ query, items: result[resource] });
+        }).catch((error) => { if (!controller.signal.aborted) setSearchError(error.message); });
+    }, 250);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [resource, query]);
+
+  function move(index, offset) {
+    const next = [...ids];
+    const destination = index + offset;
+    [next[index], next[destination]] = [next[destination], next[index]];
+    setIds(next);
+  }
+
+  const suggestions = matches?.query === query
+    ? matches.items.filter(({ _id }) => _id !== sourceId && !ids.includes(_id)) : null;
+  const placeholder = type === "movie" ? "Search movies by title" : "Search series by title";
+
+  return (
+    <fieldset className="min-w-0 space-y-3 border-t border-[var(--admin-border)] pt-4">
+      <legend className="text-sm font-semibold">More Like This</legend>
+      <div className="relative">
+        <Input type="search" aria-label={placeholder} value={search} placeholder={placeholder} autoComplete="off"
+          onChange={(event) => { setSearch(event.target.value); setSearchError(""); }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.preventDefault();
+            if (event.key === "Escape") setSearch("");
+          }} />
+        {query && <div className="mt-1 max-h-64 overflow-y-auto rounded-lg border border-[var(--admin-border)] bg-[var(--admin-surface)]">
+          {searchError ? <p role="alert" className="tvk-validation m-2 text-sm">{searchError}</p>
+            : !suggestions ? <p role="status" className="p-3 text-sm text-[var(--admin-muted)]">Searching…</p>
+            : !suggestions.length ? <p role="status" className="p-3 text-sm text-[var(--admin-muted)]">No matching titles available.</p>
+            : <ul className="divide-y divide-[var(--admin-border)]">
+              {suggestions.map((item) => <li key={item._id}>
+                <button type="button" disabled={ids.length >= 50}
+                  className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-[var(--admin-soft)] disabled:opacity-50"
+                  onClick={() => {
+                    setTitles((current) => ({ ...current, [item._id]: item }));
+                    setIds([...ids, item._id]);
+                    setSearch("");
+                  }}>
+                  <RecommendationThumbnail posterUrl={item.posterUrl} />
+                  <span className="min-w-0 flex-1 font-medium">{item.title}</span>
+                  <Plus size={16} aria-hidden="true" />
+                </button>
+              </li>)}
+            </ul>}
+        </div>}
+      </div>
+      {loadError && <p role="alert" className="tvk-validation text-sm">{loadError}</p>}
+      <ol className="divide-y divide-[var(--admin-border)]">
+        {ids.map((id, index) => {
+          const item = titles[id];
+          const label = item?.title || (id in titles ? "Unavailable title" : loadError ? "Title could not be loaded" : "Loading title…");
+          return <li key={id} className="flex flex-wrap items-center gap-3 py-2 text-sm">
+            <RecommendationThumbnail posterUrl={item?.posterUrl} />
+            <span className="min-w-28 flex-1 font-medium">{label}</span>
+            <div className="flex shrink-0 gap-1.5">
+              <Button type="button" variant="outline" size="icon" className="size-9" aria-label={`Move ${label} up`} disabled={index === 0} onClick={() => move(index, -1)}><ChevronUp size={16} /></Button>
+              <Button type="button" variant="outline" size="icon" className="size-9" aria-label={`Move ${label} down`} disabled={index === ids.length - 1} onClick={() => move(index, 1)}><ChevronDown size={16} /></Button>
+              <Button type="button" variant="outline" size="icon" className="size-9" aria-label={`Remove ${label}`} onClick={() => setIds(ids.filter((item) => item !== id))}><X size={16} /></Button>
+            </div>
+          </li>;
+        })}
+      </ol>
+    </fieldset>
+  );
+}
+
+function appendTitleLanguages(formData, draft, title, description) {
+  const row = draft.row;
+  formData.set("primaryLanguage", row.language);
+  formData.set("selectedPrimaryLanguage", draft.primary);
+  formData.set("selectedLanguageCodes", JSON.stringify(draft.codes));
+  formData.set("localizations", JSON.stringify([{ language: row.language, title, description }]));
+  if (row.posterFile) formData.set("localePoster0", row.posterFile);
+  if (row.bannerFile) formData.set("localeBanner0", row.bannerFile);
+}
+
+function TitleLanguagePicker({ languages, codes, primary, onChange, onPrimary, disabled, lockedValues }) {
+  const options = [...languages, ...codes.filter((code) => !languages.some((item) => item.code === code))
+    .map((code) => ({ code, englishName: code }))];
+  return <div className="grid gap-4 sm:grid-cols-2">
+    <MultiSelectField label="Languages" placeholder="Select languages" options={options}
+      selected={codes} valueKey="code" onChange={onChange} disabled={disabled} lockedValues={lockedValues} />
+    <label className="space-y-1.5 text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
+      Primary language
+      <Select value={primary} disabled={disabled || !codes.length} onChange={(event) => onPrimary(event.target.value)}>
+        {!codes.length && <option value="">Select languages first</option>}
+        {codes.map((code) => <option key={code} value={code}>{options.find((option) => option.code === code)?.englishName || code}</option>)}
+      </Select>
+    </label>
+  </div>;
+}
+
+const languageNames = new Intl.DisplayNames(["en"], { type: "language", fallback: "code" });
+
+function primaryCatalogDetails(item) {
+  const row = item.localizations?.find(({ language }) => language === item.primaryLanguage);
+  return row ? { ...item, title: row.title, description: row.description, posterUrl: row.posterUrl,
+    bannerUrl: row.bannerUrl, thumbnailUrl: undefined } : item;
+}
+
+function PrimaryLanguageTag({ code }) {
+  if (!code) return null;
+  const name = /^[a-z]{2,3}(?:[-_][a-z0-9]{2,8})*$/i.test(code) ? languageNames.of(code.replaceAll("_", "-")) : code;
+  return <span className="mt-1 inline-block rounded border border-[var(--admin-border)] bg-[var(--admin-surface)] px-2 py-0.5 text-xs text-[var(--admin-primary)]">
+    {name} · Primary
+  </span>;
+}
+
+function SavedTitleLanguages({ editing, resource, languages, disabled, onSaved }) {
+  const [savedRows, setSavedRows] = useState(null);
+  const [saveVersion, setSaveVersion] = useState(0);
+  const [selection, setSelection] = useState("");
+  const [drafts, setDrafts] = useState({});
+  const [settings, setSettings] = useState(null);
+  const [savedSettings, setSavedSettings] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState(null);
+  const rows = savedRows ?? editing.localizations ?? [];
+  const savedCodes = rows.map((row) => row.language);
+  const persistedCodes = savedSettings?.codes ?? editing.selectedLanguageCodes ?? (editing.localizations || []).map((row) => row.language);
+  const persistedPrimary = savedSettings?.primary ?? editing.primaryLanguage ?? persistedCodes[0] ?? "";
+  const codes = settings?.codes ?? persistedCodes;
+  const primary = settings?.primary ?? persistedPrimary;
+  const activeCode = codes.includes(selection) ? selection : primary || codes[0];
+  const active = rows.find((row) => row.language === activeCode);
+  const changes = drafts[activeCode] || {};
+  const name = (code) => languages.find((option) => option.code === code)?.englishName || code;
+  const row = { language: activeCode, ...active, ...changes };
+  const update = (fields) => {
+    setMessage(null);
+    setDrafts((current) => ({ ...current, [activeCode]: { ...current[activeCode], ...fields } }));
+  };
+
+  function selectCodes(next) {
+    if (codes.some((code) => !next.includes(code) && drafts[code]) &&
+        !window.confirm("Discard unsaved details for the removed language?")) return;
+    setDrafts((current) => Object.fromEntries(Object.entries(current).filter(([code]) => next.includes(code))));
+    setSettings({ codes: next, primary: next.includes(primary) ? primary : next[0] ?? "" });
+  }
+
+  async function save() {
+    if (disabled || saving || !row.language || !row.title?.trim()) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      const form = new FormData();
+      for (const [key, value] of Object.entries({
+        languageAction: "save", language: row.language, title: row.title, description: row.description || "",
+        selectedLanguageCodes: JSON.stringify(codes), selectedPrimaryLanguage: primary,
+        removePoster: Boolean(row.removePoster), removeBanner: Boolean(row.removeBanner),
+      })) form.set(key, String(value));
+      if (row.posterFile) form.set("localePoster0", row.posterFile);
+      if (row.bannerFile) form.set("localeBanner0", row.bannerFile);
+      const url = `/api/admin/${resource}/${editing._id}`;
+      const response = await fetch(url, { method: "PUT", body: form });
+      const result = await readJsonResponse(response);
+      if (!response.ok || !result.success) throw new Error(result.message || "Could not save language.");
+      const next = rows.some((item) => item.language === row.language)
+        ? rows.map((item) => item.language === row.language ? result.localization : item)
+        : [...rows, result.localization];
+      setSavedRows(next);
+      setSaveVersion((version) => version + 1);
+      setSavedSettings({ codes: result.selectedLanguageCodes, primary: result.primaryLanguage });
+      setSettings(null);
+      setSelection(row.language);
+      setDrafts((current) => { const next = { ...current }; delete next[row.language]; return next; });
+      setMessage({ text: `${name(row.language)} details saved.` });
+      for (const key of apiCache.keys()) {
+        if (key.startsWith(`/api/admin/${resource}`)) apiCache.delete(key);
+      }
+      onSaved?.(next, result.primaryLanguage, result.selectedLanguageCodes);
+    } catch (error) {
+      setMessage({ text: error.message, error: true });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section aria-label="Language details" className="space-y-4 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4 sm:p-6">
+      <h2 className="font-semibold">Language Details</h2>
+      <TitleLanguagePicker languages={languages} codes={codes} primary={primary} lockedValues={savedCodes}
+        disabled={disabled || saving} onChange={selectCodes} onPrimary={(code) => setSettings({ codes, primary: code })} />
+      <div role="group" aria-label="Language variations" className="flex flex-wrap gap-2">
+        {codes.map((code) => (
+          <Button key={code} type="button" disabled={saving} aria-pressed={activeCode === code}
+            variant={activeCode === code ? "primary" : "outline"} onClick={() => { setSelection(code); setMessage(null); }}>
+            {name(code)}{code === primary && " · Primary"}{!savedCodes.includes(code) && " · Unsaved"}
+          </Button>
+        ))}
+      </div>
+      {row.language && <div key={`${row.language}:${saveVersion}`} className="space-y-4 border-t border-[var(--admin-border)] pt-4">
+        <h3 className="text-base font-semibold">{name(row.language)} details</h3>
+        <label className="block text-sm">Title <span className="text-[var(--admin-muted)]">(required to save)</span> <Input className="mt-1" value={row.title || ""} disabled={disabled || saving}
+          onChange={(event) => update({ title: event.target.value })} /></label>
+        <label className="block text-sm">Description <Textarea className="mt-1" value={row.description || ""} disabled={disabled || saving}
+          onChange={(event) => update({ description: event.target.value })} /></label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ImageUploadField label="Poster Image" hintKey="poster" compact currentUrl={row.removePoster ? "" : row.posterUrl}
+            file={row.posterFile} onFileChange={(posterFile) => update({ posterFile, removePoster: false })}
+            onClear={() => update({ posterFile: null, removePoster: true })} disabled={disabled || saving} />
+          <ImageUploadField label="Banner Image" hintKey="banner" compact currentUrl={row.removeBanner ? "" : row.bannerUrl}
+            file={row.bannerFile} onFileChange={(bannerFile) => update({ bannerFile, removeBanner: false })}
+            onClear={() => update({ bannerFile: null, removeBanner: true })} disabled={disabled || saving} />
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--admin-border)] pt-4">
+          <p className="text-sm text-[var(--admin-muted)]">This saves only {name(row.language)} details.</p>
+          <Button type="button" disabled={disabled || saving || !row.title?.trim() || (Boolean(active) && !Object.keys(changes).length &&
+              primary === persistedPrimary && codes.length === persistedCodes.length && codes.every((code, index) => code === persistedCodes[index]))}
+            onClick={save}>{saving ? "Saving…" : `Save ${name(row.language)}`}</Button>
+        </div>
+      </div>}
+      {message && <p role={message.error ? "alert" : "status"} className={message.error ? "tvk-validation text-sm" : "text-sm"}>{message.text}</p>}
+    </section>
+  );
+}
+
+function TitleLanguageEditor({ languages, value, onChange, title, description, onPrimaryChange, disabled, submitting }) {
+  const codes = value?.codes ?? [];
+  const primary = value?.primary ?? "";
+  const row = value?.row;
+  const code = row?.language;
+  const name = (code) => languages.find((option) => option.code === code)?.englishName || code;
+  const update = (changes) => onChange({ codes, primary, row: { ...row, ...changes } });
+
+  function choose(next, nextCodes = codes) {
+    if (next !== code && (title || description || row?.posterFile || row?.bannerFile)) {
+      if (!window.confirm("Discard unsaved details for this language?")) return;
+      onPrimaryChange("", "");
+    }
+    onChange({ codes: nextCodes, primary: nextCodes.includes(primary) ? primary : nextCodes[0] ?? "",
+      row: next === code ? row : next ? { language: next } : undefined });
+  }
+
+  return (
+    <section className="space-y-4 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4 sm:p-6" aria-label="Language details">
+      <h2 className="font-semibold">Language Details</h2>
+      <p className="text-sm text-[var(--admin-muted)]">Select languages, choose a primary language, then save each language separately. The first save creates a draft.</p>
+      <TitleLanguagePicker languages={languages} codes={codes} primary={primary} disabled={disabled}
+        onChange={(next) => choose(next.includes(code) ? code : next[0], next)}
+        onPrimary={(next) => onChange({ codes, row, primary: next })} />
+      <div role="group" aria-label="Language variations" className="flex flex-wrap gap-2">
+        {codes.map((item) => <Button key={item} type="button" variant={item === code ? "primary" : "outline"}
+          aria-pressed={item === code} disabled={disabled} onClick={() => choose(item)}>
+          {name(item)}{item === primary && " · Primary"}
+        </Button>)}
+      </div>
+      {row && <div key={code} className="space-y-4">
+        <label className="block text-sm font-semibold">Title
+          <Input value={title} disabled={disabled} required onChange={(event) => onPrimaryChange(event.target.value, description)} />
+        </label>
+        <label className="block text-sm font-semibold">Description
+          <Textarea value={description} disabled={disabled} onChange={(event) => onPrimaryChange(title, event.target.value)} />
+        </label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ImageUploadField label="Poster Image" hintKey="poster" compact file={row.posterFile}
+            onFileChange={(posterFile) => update({ posterFile })} disabled={disabled} />
+          <ImageUploadField label="Banner Image" hintKey="banner" compact file={row.bannerFile}
+            onFileChange={(bannerFile) => update({ bannerFile })} disabled={disabled} />
+        </div>
+        <Button type="submit" disabled={disabled || !title.trim()}>
+          {submitting ? "Saving…" : `Save ${name(code)}`}
+        </Button>
+      </div>}
+    </section>
+  );
+}
+
+function MovieEditor({ editing, media, subtitles, onSaved, notify, canEdit }) {
+  const router = useRouter();
+  const [movieMedia, setMovieMedia] = useState(media || []);
+  const [movieTracks, setMovieTracks] = useState(subtitles || []);
+  const [subtitlePreference, setSubtitlePreference] = useState(null);
+  const [savedMovieLanguages, setSavedMovieLanguages] = useState(null);
+  const [savedAvailability, setSavedAvailability] = useState(null);
+  const studioMovie = { ...editing, ...savedMovieLanguages, ...savedAvailability };
+  const [section, setSection] = useState(() => editing && typeof window !== "undefined" && new URLSearchParams(window.location.search).get("step") === "media" ? "video-assets" : "details");
+  const [saveError, setSaveError] = useState("");
+  useEffect(() => { setMovieTracks(subtitles || []); }, [subtitles]);
+  function updateTrack(language, subtitleLanguage, track) {
+    setMovieTracks((current) => {
+      const next = current.filter((item) => item.language !== language || item.subtitleLanguage !== subtitleLanguage);
+      return track ? [...next, track] : next;
+    });
+  }
+  useEffect(() => { setMovieMedia(media || []); }, [media]);
+  function updateMedia(row) {
+    setMovieMedia((current) => [...current.filter((item) => item.language !== row.language || item.quality !== row.quality), row]);
+  }
+
+  const [genreOptions, setGenreOptions] = useState([]);
+  const [languageOptions, setLanguageOptions] = useState([]);
+  const [localeDraft, setLocaleDraft] = useState(null);
+  useEffect(() => {
+    apiFetch("/api/genres").then((data) => setGenreOptions(data.genres)).catch((error) => notify(error.message, "error"));
+    apiFetch("/api/languages").then((data) => setLanguageOptions(data.languages)).catch((error) => notify(error.message, "error"));
+  }, []);
+  const [movieIds, setRecommendationIds] = useState([]);
   const [form, setForm] = useState({
     title: "",
     description: "",
     releaseYear: new Date().getFullYear(),
-    duration: "",
     genres: "",
     language: "",
     pricing: "free",
     isTrending: false,
     isBlockbuster: false,
     isFeatured: false,
-    isActive: true,
+    isActive: false,
   });
   const [posterFile, setPosterFile] = useState(null);
   const [bannerFile, setBannerFile] = useState(null);
-  const [videoFile, setVideoFile] = useState(null);
+  const duration = movieMedia.find((row) => row.asset?.duration)?.asset.duration ?? editing?.duration;
+  const [credits, setCredits] = useState(null);
+  const storedCredits = editing?.cast && !Array.isArray(editing.cast) ? editing.cast : {};
   const [submitting, setSubmitting] = useState(false);
-
-  const movies = data?.movies || [];
 
   useEffect(() => {
     if (editing) {
       setForm({
-        title: editing.title || "",
-        description: editing.description || "",
+        title: editing.localizations?.find((row) => row.language === editing.primaryLanguage)?.title ?? editing.title ?? "",
+        description: editing.localizations?.find((row) => row.language === editing.primaryLanguage)?.description ?? editing.description ?? "",
         releaseYear: editing.releaseYear || new Date().getFullYear(),
-        duration: editing.duration || "",
         genres: Array.isArray(editing.genres) ? editing.genres.join(", ") : "",
         language: Array.isArray(editing.language)
           ? editing.language.join(", ")
@@ -9004,28 +7736,34 @@ function MoviesView({
         title: "",
         description: "",
         releaseYear: new Date().getFullYear(),
-        duration: "",
         genres: "",
         language: "",
         pricing: "free",
         isTrending: false,
         isBlockbuster: false,
         isFeatured: false,
-        isActive: true,
+        isActive: false,
       });
     }
+    setRecommendationIds(editing?.movieIds ?? []);
     setPosterFile(null);
     setBannerFile(null);
-    setVideoFile(null);
-  }, [editing, open]);
+  }, [editing]);
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!form.title) return notify("Title is required", "error");
+    if (!canEdit || section !== "details") return;
+    setSaveError("");
+    if (!editing && !localeDraft?.row) return setSaveError("Select at least one language.");
+    if (!editing && !form.title.trim()) return setSaveError("Enter a title for the selected language.");
     setSubmitting(true);
 
     try {
       const fd = new FormData();
+      fd.set("movieIds", JSON.stringify(movieIds));
+      if (editing) fd.set("detailsOnly", "true");
+      else appendTitleLanguages(fd, localeDraft, form.title, form.description);
+      if (credits) fd.set("cast", JSON.stringify(credits));
       Object.entries(form).forEach(([key, val]) => {
         // Booleans must be explicit strings so server-side toBoolean() works reliably
         if (typeof val === "boolean") {
@@ -9036,8 +7774,6 @@ function MoviesView({
       });
       if (posterFile) fd.append("posterImage", posterFile);
       if (bannerFile) fd.append("bannerImage", bannerFile);
-      if (videoFile) fd.append("videoFile", videoFile);
-
       const url = editing
         ? `/api/admin/movies/${editing._id || editing.id}`
         : "/api/admin/movies";
@@ -9048,91 +7784,87 @@ function MoviesView({
       if (!response.ok || !payload.success)
         throw new Error(payload.message || "Saving failed");
 
-      notify(editing ? "Movie updated" : "Movie created");
-      setOpen(false);
-      setEditing(null);
-      refresh();
+      for (const key of apiCache.keys()) {
+        if (key.startsWith("/api/admin/movies")) apiCache.delete(key);
+      }
+      notify(editing ? "Movie updated" : "Draft saved");
+      if (!editing && payload.movie?._id) {
+        router.replace(`/admin/movies/${payload.movie._id}/edit`);
+      } else {
+        onSaved();
+      }
     } catch (err) {
-      notify(err.message, "error");
+      setSaveError(err.message);
     } finally {
       setSubmitting(false);
     }
   }
 
-  async function handleDelete(id) {
-    const confirmed = await showConfirm("Are you sure you want to delete this movie?");
-    if (!confirmed) return;
+  async function updatePublication(action, language, active) {
+    if (action === "draft" && studioMovie.isActive && !window.confirm("Move this movie out of the live catalog?")) return;
+    setSubmitting(true);
+    setSaveError("");
     try {
-      const response = await fetch(`/api/admin/movies/${id}`, {
-        method: "DELETE",
-      });
-      const payload = await readJsonResponse(response);
-      if (!response.ok || !payload.success)
-        throw new Error(payload.message || "Deletion failed");
-      notify("Movie deleted");
-      refresh();
-    } catch (err) {
-      notify(err.message, "error");
+      const result = await apiFetch(`/api/admin/movies/${editing._id}`, { method: "PUT", body: JSON.stringify({ mediaAction: action, language, active }) });
+      if (action === "language-availability") {
+        const { inactiveMovieLanguages, isActive, movieHiddenByLanguage } = result;
+        setSavedAvailability({ inactiveMovieLanguages, isActive, movieHiddenByLanguage });
+        for (const key of apiCache.keys()) {
+          if (key.startsWith("/api/admin/movies")) apiCache.delete(key);
+        }
+      }
+      notify(action === "language-availability" ? (active ? "Language is active" : "Language is inactive")
+        : action === "publish" ? "Language published" : "Movie saved as draft");
+      if (action !== "language-availability") onSaved();
+    } catch (error) {
+      setSaveError(error.message);
+    } finally {
+      setSubmitting(false);
     }
   }
 
   return (
     <PageShell>
-      <div className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex gap-2">
-          <Input
-            placeholder="Search movies..."
-            value={filters.search}
-            onChange={(e) =>
-              setFilters((current) => ({
-                ...current,
-                search: e.target.value,
-                page: 1,
-              }))
-            }
-            className="w-64"
-          />
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <Link href="/admin/movies" className="text-sm text-[var(--admin-primary)]">Back to Movies Library</Link>
+            <h1 className="mt-2 text-2xl font-semibold">{editing ? primaryCatalogDetails(studioMovie).title : "Add Movie"}</h1>
+            {editing && <p className="mt-1 text-sm text-[var(--admin-muted)]">Movie Studio · {studioMovie.movieHiddenByLanguage ? "Hidden" : studioMovie.isActive === false ? "Draft" : "Published"}</p>}
+          </div>
         </div>
-        <Button
-          onClick={() => {
-            setEditing(null);
-            setOpen(true);
-          }}
-        >
-          <Plus size={17} /> Add Movie
-        </Button>
-      </div>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-5xl w-[min(1100px,calc(100vw-32px))]">
-          <form onSubmit={handleSubmit} className="flex flex-col h-full max-h-[92vh]">
-            <DialogHeader>
-              <DialogTitle className="font-display text-xl font-bold text-[var(--admin-foreground)]">
-                {editing ? "Edit Movie Metadata & Media" : "Add New Movie"}
-              </DialogTitle>
-              <DialogDescription className="text-sm text-[var(--admin-muted)] mt-1">
-                Configure movie details, duration, poster/banner artwork, category tags, and stream source.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogBody className="space-y-5">
-            <div className="grid gap-4 sm:grid-cols-2">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--admin-border)] pb-4">
+          <nav aria-label="Movie Studio sections" className="flex flex-wrap gap-2">
+            {[["details", "Details"], ["video-assets", "Video Assets"], ["subtitles", "Subtitles"]].map(([id, label]) => (
+              <Button key={id} type="button" variant={section === id ? "primary" : "outline"} aria-pressed={section === id}
+                disabled={!editing && id !== "details"} onClick={() => setSection(id)}>{label}</Button>
+            ))}
+          </nav>
+          {editing && <Button asChild variant="outline"><Link href={`/admin/movies/${editing._id}`}>View movie</Link></Button>}
+        </div>
+        {!editing && <p className="mb-4 text-sm text-[var(--admin-muted)]">Save a language to unlock Video Assets and Subtitles.</p>}
+        {saveError && <p role="alert" className="tvk-validation text-sm">{saveError}</p>}
+        {editing && section === "details" && (
+        <div className="mb-5"><SavedTitleLanguages editing={editing} resource="movies" languages={languageOptions}
+              disabled={submitting || !canEdit} onSaved={(localizations, primaryLanguage, selectedLanguageCodes) => setSavedMovieLanguages({ localizations, primaryLanguage, selectedLanguageCodes })} /></div>
+      )}
+        <form id="movies-shared-details" onSubmit={handleSubmit} className="space-y-5">
+            {!editing && (
+              <TitleLanguageEditor submitting={submitting} languages={languageOptions} value={localeDraft} onChange={setLocaleDraft}
+              title={form.title} description={form.description}
+              onPrimaryChange={(title, description) => setForm((previous) => ({ ...previous, title, description }))}
+              disabled={submitting || !canEdit} />
+            )}
+        <fieldset hidden={section !== "details"} disabled={submitting || !canEdit} className="space-y-5 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--admin-border)] pb-3">
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
-                  Title
-                </label>
-                <Input
-                  value={form.title}
-                  onChange={(e) => {
-                    const newTitle = e.target.value;
-                    setForm((prev) => ({
-                      ...prev,
-                      title: newTitle,
-                      slug: slugify(newTitle),
-                    }));
-                  }}
-                  required
-                />
+                <h2 className="font-semibold">Shared Details</h2>
+                <p className="mt-1 text-sm text-[var(--admin-muted)]">Applies to every language.</p>
               </div>
+              {canEdit && editing && <Button type="submit" variant="primary" disabled={submitting}>
+                {submitting ? "Saving…" : "Save Details"}
+              </Button>}
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
                   Release Year
@@ -9146,55 +7878,17 @@ function MoviesView({
                 />
               </div>
             </div>
-            <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
-                Description
-              </label>
-              <Textarea
-                value={form.description}
-                onChange={(e) =>
-                  setForm({ ...form, description: e.target.value })
-                }
-              />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
-                  Duration (seconds)
-                </label>
-                <Input
-                  type="number"
-                  value={form.duration}
-                  onChange={(e) =>
-                    setForm({ ...form, duration: e.target.value })
-                  }
-                  placeholder="e.g. 7200"
+                <label htmlFor="movie-duration" className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">Duration</label>
+                <Input id="movie-duration" readOnly tabIndex={0}
+                  value={duration ? formatDurationLabel(duration) : ""}
+                  placeholder="Detected from video"
+                  className="cursor-default bg-[var(--admin-soft)] text-[var(--admin-muted)]"
                 />
               </div>
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
-                  Genres (comma separated)
-                </label>
-                <Input
-                  value={form.genres}
-                  onChange={(e) => setForm({ ...form, genres: e.target.value })}
-                  placeholder="Action, Drama"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
-                  Languages (comma separated)
-                </label>
-                <Input
-                  value={form.language}
-                  onChange={(e) =>
-                    setForm({ ...form, language: e.target.value })
-                  }
-                  placeholder="Hindi, English"
-                />
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
+              <MultiSelectField label="Genres" placeholder="Select genres" options={genreOptions} selected={form.genres}
+                onChange={(values) => setForm({ ...form, genres: values.join(", ") })} disabled={submitting} />
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
                   Pricing
@@ -9209,40 +7903,31 @@ function MoviesView({
                   <option value="premium">Premium</option>
                 </Select>
               </div>
+            </div>
+            {editing && !localeDraft?.row && !editing.localizations?.length && (
+            <div className="grid gap-4 sm:grid-cols-2">
               <ImageUploadField
                 label="Poster Image"
+                hintKey="poster"
+                compact
                 currentUrl={editing?.posterUrl}
                 file={posterFile}
                 onFileChange={setPosterFile}
                 aspectRatio="2/3"
                 disabled={submitting}
               />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
               <ImageUploadField
                 label="Banner Image"
+                hintKey="banner"
+                compact
                 currentUrl={editing?.bannerUrl}
                 file={bannerFile}
                 onFileChange={setBannerFile}
                 aspectRatio="16/9"
                 disabled={submitting}
               />
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
-                  Video File (Raw)
-                </label>
-                <Input
-                  type="file"
-                  accept="video/*"
-                  onChange={(e) => setVideoFile(e.target.files[0])}
-                />
-                {editing?.videoUrl && (
-                  <p className="text-xs text-[var(--admin-muted)] mt-1">
-                    Current: {editing.videoUrl}
-                  </p>
-                )}
-              </div>
             </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <label className="flex items-center gap-2 text-sm font-semibold">
                 <input
@@ -9274,142 +7959,147 @@ function MoviesView({
                 />
                 Featured
               </label>
-              <label className="flex items-center gap-2 text-sm font-semibold">
-                <input
-                  type="checkbox"
-                  checked={form.isActive}
-                  onChange={(e) =>
-                    setForm({ ...form, isActive: e.target.checked })
-                  }
-                />
-                Active
-              </label>
             </div>
-          </DialogBody>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting ? "Saving..." : "Save Movie"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Movies</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <PinkLoader className="min-h-96" />
-          ) : movies.length ? (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[800px] text-sm">
-                  <thead>
-                    <tr className="border-b border-[var(--admin-border)] text-left text-xs uppercase tracking-[0.12em] text-[var(--admin-muted)]">
-                      <th className="px-3 py-3">Movie title</th>
-                      <th className="px-3 py-3">Year</th>
-                      <th className="px-3 py-3">Duration</th>
-                      <th className="px-3 py-3">Pricing</th>
-                      <th className="px-3 py-3">Status</th>
-                      <th className="px-3 py-3">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {movies.map((movie) => (
-                      <tr
-                        key={movie._id || movie.id}
-                        className="border-b border-[var(--admin-border)] hover:bg-[var(--admin-soft)]"
-                      >
-                        <td className="px-3 py-4 font-semibold flex items-center gap-3">
-                          <div className="grid h-12 w-16 shrink-0 place-items-center overflow-hidden rounded-[8px] bg-[var(--admin-soft)]">
-                            {movie.posterUrl || movie.thumbnailUrl ? (
-                              <img
-                                src={movie.posterUrl || movie.thumbnailUrl}
-                                alt=""
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <Film
-                                className="text-[var(--admin-primary)]"
-                                size={20}
-                              />
-                            )}
-                          </div>
-                          <div>
-                            <p>{movie.title}</p>
-                            <p className="text-xs text-[var(--admin-muted)]">
-                              {(movie.genres || []).join(", ")}
-                            </p>
-                          </div>
-                        </td>
-                        <td className="px-3 py-4">
-                          {movie.releaseYear || "-"}
-                        </td>
-                        <td className="px-3 py-4">
-                          {movie.duration
-                            ? `${Math.round(movie.duration / 60)}m`
-                            : "-"}
-                        </td>
-                        <td className="px-3 py-4 capitalize">
-                          {movie.pricing || "free"}
-                        </td>
-                        <td className="px-3 py-4">
-                          <StatusBadge
-                            status={movie.isActive ? "Active" : "Suspended"}
-                          />
-                        </td>
-                        <td className="px-3 py-4">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal size={18} />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                              <DropdownMenuItem
-                                onSelect={() => {
-                                  setEditing(movie);
-                                  setOpen(true);
-                                }}
-                              >
-                                <Pencil size={16} /> Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onSelect={() =>
-                                  handleDelete(movie._id || movie.id)
-                                }
-                              >
-                                <Trash2 size={16} className="text-red-500" />{" "}
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            <section className="space-y-3 border-t border-[var(--admin-border)] pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="font-semibold">Cast &amp; Crew</h2>
+                <Link href="/admin/artists" className="text-sm text-[var(--admin-primary)]">People directory</Link>
               </div>
-              <Pagination pagination={data?.pagination} setPage={setPage} />
-            </>
-          ) : (
-            <EmptyState
-              icon={Film}
-              title="No movies found"
-              description="Get started by adding a movie to your library."
-            />
-          )}
-        </CardContent>
-      </Card>
+              {Array.isArray(editing?.cast) && editing.cast.length > 0 && !credits && (
+                <ul className="space-y-1 text-sm text-[var(--admin-muted)]">
+                  {editing.cast.map((member, index) => <li key={index}>{member.name || String(member)}{member.role ? ` · ${member.role}` : ""}</li>)}
+                </ul>
+              )}
+              <div className="grid gap-4 md:grid-cols-3">
+                {[["actors", "actor", "Actors"], ["directors", "director", "Directors"], ["writers", "writer", "Writers"]].map(([key, type, label]) => (
+                  <ArtistSearchDropdown key={key} label={label} placeholder="Search people" type={type}
+                    selected={((credits || storedCredits)[key] || []).map((person) => ({ ...person, _id: person.artistId || person._id }))}
+                    onChange={(people) => setCredits({ ...(credits || storedCredits), [key]: people.map((person) => ({ ...person, artistId: person.artistId || person._id })) })}
+                    disabled={submitting} notify={notify} />
+                ))}
+              </div>
+            </section>
+            <RecommendationEditor type="movie" sourceId={editing?._id || editing?.id} ids={movieIds} setIds={setRecommendationIds} />
+        </fieldset>
+      </form>
+
+      {editing && section !== "details" && (
+        <MovieAssetWorkspace movie={primaryCatalogDetails(studioMovie)} section={section} entries={movieMedia} tracks={movieTracks}
+          languages={languageOptions} onChange={updateMedia} onTrackChange={updateTrack}
+          subtitlesEnabled={subtitlePreference ?? editing.subtitlesEnabled ?? movieTracks.length > 0} onSubtitleToggle={setSubtitlePreference} onPublish={canEdit ? (language) => updatePublication("publish", language) : undefined}
+          onLanguageAvailability={canEdit ? (language, active) => updatePublication("language-availability", language, active) : undefined}
+          onSaveDraft={canEdit ? () => updatePublication("draft") : undefined} publishing={submitting}
+          readDuration={readVideoDuration} disabled={!canEdit} />
+      )}
+    </PageShell>
+  );
+}
+
+function MoviesView({ admin, data, loading, filters, setFilters, setPage, refresh, notify }) {
+  const [layout, setLayout] = useState("grid");
+  const [options, setOptions] = useState({ genres: [], languages: [] });
+  const movies = (data?.movies || []).map(primaryCatalogDetails);
+  const counts = data?.counts;
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([apiFetch("/api/genres"), apiFetch("/api/languages")]).then(([genres, languages]) => {
+      if (active) setOptions({ genres: genres.genres, languages: languages.languages });
+    }).catch((error) => {
+      if (active) notify(error.message, "error");
+    });
+    return () => { active = false; };
+  }, []);
+
+  function setFilter(key, value) {
+    setFilters((current) => ({ ...current, [key]: value, page: 1 }));
+  }
+
+  async function remove(movie) {
+    if (!(await showConfirm(`Delete “${movie.title}”?`))) return;
+    try {
+      await apiFetch(`/api/admin/movies/${movie._id}`, { method: "DELETE" });
+      notify("Movie deleted");
+      refresh();
+    } catch (error) {
+      notify(error.message, "error");
+    }
+  }
+
+  return (
+    <PageShell>
+      <section className="space-y-5">
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <h1 className="text-3xl font-semibold">Movies Library</h1>
+          {canUploadVideo(admin) && <Button asChild><Link href="/admin/movies/new"><Plus size={17} /> Add Movie</Link></Button>}
+        </header>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[["Total movies", "total", Film], ["Published", "published", Check], ["Draft", "draft", Pencil], ["Coming soon", "comingSoon", Calendar]].map(([label, key, Icon]) => (
+            <Card key={key}><CardContent className="flex items-start justify-between gap-2 p-4">
+              <div>{key === "draft" ? <button type="button" className="text-sm font-semibold text-[var(--admin-primary)]" onClick={() => setFilter("status", "draft")}>View Drafts</button> : <p className="text-sm text-[var(--admin-muted)]">{label}</p>}<p className="mt-2 text-2xl font-semibold">{counts?.[key] ?? "—"}</p></div>
+              <Icon size={18} className="text-[var(--admin-primary)]" aria-hidden="true" />
+            </CardContent></Card>
+          ))}
+        </div>
+        <div className="grid gap-2 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-3 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,2fr)_repeat(4,minmax(0,1fr))_auto]">
+          <Input aria-label="Search movies" placeholder="Search title, genre, or cast" value={filters.search || ""} onChange={(e) => setFilter("search", e.target.value)} />
+          <Select aria-label="Filter by genre" value={filters.genre || ""} onChange={(e) => setFilter("genre", e.target.value)}>
+            <option value="">All genres</option>{options.genres.map(({ name }) => <option key={name}>{name}</option>)}
+          </Select>
+          <Select aria-label="Filter by status" value={filters.status || ""} onChange={(e) => setFilter("status", e.target.value)}>
+            <option value="">All statuses</option><option value="published">Published</option><option value="draft">Draft</option><option value="coming-soon">Coming soon</option>
+          </Select>
+          <Select aria-label="Filter by language" value={filters.language || ""} onChange={(e) => setFilter("language", e.target.value)}>
+            <option value="">All languages</option>{options.languages.map(({ code, englishName }) => <option key={code} value={englishName}>{englishName}</option>)}
+          </Select>
+          <Select aria-label="Sort movies" value={filters.sort || "recent"} onChange={(e) => setFilter("sort", e.target.value)}>
+            <option value="recent">Recently updated</option><option value="title">Title A–Z</option>
+          </Select>
+          <div className="flex gap-1">
+            {["grid", "list"].map((view) => <Button key={view} aria-pressed={layout === view} type="button"
+              variant={layout === view ? "default" : "outline"} onClick={() => setLayout(view)}>{view === "grid" ? "Grid" : "List"}</Button>)}
+          </div>
+        </div>
+        {loading ? <PinkLoader /> : movies.length ? (
+          <ul className={layout === "grid" ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "grid gap-2"}>
+            {movies.map((movie) => (
+              <li key={movie._id} className="relative rounded-xl border border-[var(--admin-border)] bg-[var(--admin-surface)] transition-colors hover:border-[var(--admin-primary)]">
+                <Link href={`/admin/movies/${movie._id}`} className={layout === "list" ? "flex items-center gap-4 p-2" : "block"}>
+                  <div className={`grid shrink-0 place-items-center overflow-hidden bg-[var(--admin-soft)] ${layout === "list" ? "h-14 w-24 rounded-lg" : "aspect-video rounded-t-xl"}`}>
+                    {movie.posterUrl || movie.bannerUrl || movie.thumbnailUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img loading="lazy" src={movie.posterUrl || movie.bannerUrl || movie.thumbnailUrl} alt="" className="h-full w-full object-cover" />
+                    ) : <Film className="text-[var(--admin-muted)]" aria-hidden="true" />}
+                  </div>
+                  <div className={layout === "list" ? "min-w-0 flex-1 pr-16" : "min-w-0 p-4"}>
+                    <p className="truncate font-semibold">{movie.title}</p>
+                    <PrimaryLanguageTag code={movie.primaryLanguage} />
+                    <p className="mt-1 truncate text-sm text-[var(--admin-muted)]">{[movie.releaseYear, ...(movie.genres || [])].filter(Boolean).join(" · ")}</p>
+                    <p className="mt-2 text-xs font-semibold text-[var(--admin-primary)]">{movie.isComingSoon ? "Coming soon" : movie.isActive === false ? "Draft · View draft" : "Published"}</p>
+                  </div>
+                </Link>
+                {canUploadVideo(admin) && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button className="absolute right-2 top-2" type="button" variant="outline" size="icon"
+                        aria-label={`Actions for ${movie.title}`}><MoreHorizontal size={16} /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem asChild>
+                        <Link href={`/admin/movies/${movie._id}/edit`}><Pencil size={15} /> Edit Movie</Link>
+                      </DropdownMenuItem>
+                      {admin?.role === "super_admin" && <DropdownMenuItem onSelect={() => remove(movie)} className="text-red-500">
+                        <Trash2 size={15} /> Delete Movie
+                      </DropdownMenuItem>}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : <EmptyState icon={Film} title="No movies found" description="Add a movie or change the filters." />}
+        <Pagination pagination={data?.pagination} setPage={setPage} />
+      </section>
     </PageShell>
   );
 }
@@ -9737,7 +8427,7 @@ const SeriesCard = React.memo(({
   return (
     <div
       className="card-lib cursor-pointer"
-      onClick={() => router.push(`/series/${series.slug}`)}
+      onClick={() => router.push(`/admin/series/${series._id || series.id}`)}
       onMouseEnter={() => onPrefetch(series)}
       onFocus={() => onPrefetch(series)}
     >
@@ -9787,6 +8477,7 @@ const SeriesCard = React.memo(({
         </div>
         <div className="media-bottom-lib z-10 relative">
           <div className="title">{series.title}</div>
+          <PrimaryLanguageTag code={series.primaryLanguage} />
         </div>
       </div>
       <div className="card-body-lib">
@@ -9930,7 +8621,7 @@ const SeriesCard = React.memo(({
           </div>
           <Link
             className="manage-link-lib"
-            href={`/admin/seasons?series=${series.slug || String(series.title || "").toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+            href={`/admin/series/${series._id || series.id}/edit?section=seasons`}
             onClick={(e) => e.stopPropagation()}
             onMouseEnter={() => onPrefetch(series)}
             onFocus={() => onPrefetch(series)}
@@ -9950,6 +8641,9 @@ const SeriesCard = React.memo(({
 
 function SeriesView({
   data,
+  editorMode = false,
+  editorId,
+  canEdit = true,
   loading,
   filters,
   setFilters,
@@ -9958,6 +8652,7 @@ function SeriesView({
   notify,
 }) {
   const router = useRouter();
+  const [localeDraft, setLocaleDraft] = useState(null);
   const [localSeriesList, setLocalSeriesList] = useState([]);
   const [comingSoonModal, setComingSoonModal] = useState({
     isOpen: false,
@@ -9967,12 +8662,11 @@ function SeriesView({
   const pendingRequests = useRef({});
 
   useEffect(() => {
-    setLocalSeriesList(data?.series || []);
+    setLocalSeriesList(Array.isArray(data?.series) ? data.series : []);
   }, [data?.series]);
 
   const [nowTime] = useState(() => Date.now());
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
+  const editing = editorId ? data?.series : null;
   const [form, setForm] = useState({
     title: "",
     slug: "",
@@ -9994,7 +8688,7 @@ function SeriesView({
     isFeatured: false,
     isComingSoon: false,
     expectedReleaseDate: "",
-    isActive: true,
+    isActive: false,
   });
   const [posterFile, setPosterFile] = useState(null);
   const [bannerFile, setBannerFile] = useState(null);
@@ -10027,17 +8721,17 @@ function SeriesView({
       .catch(console.error);
   }, []);
 
-  const seriesList = localSeriesList;
+  const seriesList = React.useMemo(() => localSeriesList.map(primaryCatalogDetails), [localSeriesList]);
 
   useEffect(() => {
     if (editing) {
       setForm({
-        title: editing.title || "",
+        title: editing.localizations?.find((row) => row.language === editing.primaryLanguage)?.title ?? editing.title ?? "",
         slug: editing.slug || slugify(editing.title || ""),
         posterUrl: editing.posterUrl || "",
         bannerUrl: editing.bannerUrl || "",
         color: editing.color || "0xFF1A1A2E",
-        description: editing.description || "",
+        description: editing.localizations?.find((row) => row.language === editing.primaryLanguage)?.description ?? editing.description ?? "",
         releaseYear: editing.releaseYear || new Date().getFullYear(),
         genres: Array.isArray(editing.genres) ? editing.genres.join(", ") : "",
         language:
@@ -10125,25 +8819,48 @@ function SeriesView({
         isFeatured: false,
         isComingSoon: false,
         expectedReleaseDate: "",
-        isActive: true,
+        isActive: false,
       });
     }
     setPosterFile(null);
     setBannerFile(null);
     setTrailerPosterFile(null);
-  }, [editing, open]);
+  }, [editing]);
 
   const handleFormFlagChange = (key, val) => {
     setForm({ ...form, [key]: val });
   };
 
+  async function updatePublication(action) {
+    if (action === "draft" && editing.isActive && !window.confirm("Move this series out of the live catalog?")) return;
+    setSubmitting(true);
+    try {
+      await apiFetch(`/api/admin/series/${editorId}`, {
+        method: "PUT", body: JSON.stringify({ publicationAction: action }),
+      });
+      for (const key of apiCache.keys()) {
+        if (key.startsWith("/api/admin/series")) apiCache.delete(key);
+      }
+      refresh();
+      notify(action === "publish" ? "Series published" : "Series saved as draft");
+    } catch (error) {
+      notify(error.message, "error");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!form.title) return notify("Title is required", "error");
+    if (!canEdit) return;
+    if (!editing && !form.title.trim()) return notify("Enter a title for the selected language.", "error");
+    if (!editing && !localeDraft?.row) return notify("Select at least one language.", "error");
     setSubmitting(true);
 
     try {
       const fd = new FormData();
+      if (editing) fd.set("detailsOnly", "true");
+      else appendTitleLanguages(fd, localeDraft, form.title, form.description);
       Object.entries(form).forEach(([key, val]) => {
         if (key === "cast") {
           const castPayload = {
@@ -10189,9 +8906,14 @@ function SeriesView({
         throw new Error(payload.message || "Saving failed");
 
       notify(editing ? "Series updated" : "Series created");
-      setOpen(false);
-      setEditing(null);
-      refresh();
+      for (const key of apiCache.keys()) {
+        if (key.startsWith("/api/admin/series")) apiCache.delete(key);
+      }
+      if (!editing && payload.series?._id) {
+        router.push(`/admin/series/${payload.series._id}/edit`);
+      } else {
+        router.push("/admin/series");
+      }
     } catch (err) {
       notify(err.message, "error");
     } finally {
@@ -10356,6 +9078,309 @@ function SeriesView({
     apiFetch(seasonsUrl).catch(() => {});
   };
 
+  if (editorMode) {
+    if (editorId && loading) return <PageShell><PinkLoader /></PageShell>;
+    if (editorId && !editing) {
+      return <PageShell><EmptyState title="Series unavailable" description="The series could not be loaded." /></PageShell>;
+    }
+    return (
+      <PageShell>
+          {!editorId && <div className="mb-5">
+              <Link href="/admin/series" className="text-sm text-[var(--admin-primary)]">Back to Series Library</Link>
+              <h1 className="mt-2 text-2xl font-semibold">Add Series</h1>
+          </div>}
+          {editing && (
+        <div className="mb-5"><SavedTitleLanguages editing={editing} resource="series" languages={languagesList}
+              disabled={submitting || !canEdit} /></div>
+      )}
+          <form id="series-shared-details" onSubmit={handleSubmit} className="series-library-admin space-y-5">
+            {!editing && (
+              <TitleLanguageEditor submitting={submitting} languages={languagesList} value={localeDraft} onChange={setLocaleDraft}
+              title={form.title} description={form.description}
+              onPrimaryChange={(title, description) => setForm((previous) => ({ ...previous, title, description, slug: slugify(title) }))}
+              disabled={submitting || !canEdit} />
+            )}
+          <fieldset disabled={submitting || !canEdit} className="min-w-0 space-y-6 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-surface)] p-4 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--admin-border)] pb-3">
+              <div>
+                <h2 className="font-semibold">Shared Details</h2>
+                <p className="mt-1 text-sm text-[var(--admin-muted)]">Applies to every language.</p>
+              </div>
+              {canEdit && editing && <Button type="submit" variant="primary" disabled={submitting}>{submitting ? "Saving…" : "Save Details"}</Button>}
+            </div>
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
+                  Theme Color
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    type="color"
+                    value={(() => {
+                      const val = form.color || "0xFF1A1A2E";
+                      if (val.startsWith("0xFF") && val.length === 10)
+                        return `#${val.slice(4)}`;
+                      if (val.startsWith("#")) return val;
+                      return "#1A1A2E";
+                    })()}
+                    onChange={(e) => {
+                      const hex = e.target.value;
+                      setForm({
+                        ...form,
+                        color: `0xFF${hex.slice(1).toUpperCase()}`,
+                      });
+                    }}
+                    className="w-12 h-10 p-1 cursor-pointer"
+                  />
+                  <Input
+                    type="text"
+                    value={form.color || ""}
+                    onChange={(e) =>
+                      setForm({ ...form, color: e.target.value })
+                    }
+                    placeholder="e.g. 0xFF1A1A2E"
+                    className="flex-grow font-mono text-xs"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
+                  Release Year
+                </label>
+                <Input
+                  type="number"
+                  value={form.releaseYear}
+                  onChange={(e) =>
+                    setForm({ ...form, releaseYear: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
+                  Age Rating
+                </label>
+                <Select
+                  value={form.ageRating}
+                  onChange={(e) =>
+                    setForm({ ...form, ageRating: e.target.value })
+                  }
+                >
+                  <option value="">Select Age Rating</option>
+                  <option value="U">U (All Ages)</option>
+                  <option value="U/A 7+">U/A 7+</option>
+                  <option value="U/A 13+">U/A 13+</option>
+                  <option value="U/A 16+">U/A 16+</option>
+                  <option value="A 18+">A 18+</option>
+                </Select>
+              </div>
+            </div>
+
+            {/* Cast & Crew Management */}
+            <div className="rounded-[var(--radius-sm)] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-5 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[var(--admin-border)] pb-3">
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--admin-foreground)]">
+                    Cast &amp; Crew
+                  </h4>
+                  <p className="text-[10px] text-[var(--admin-muted)] mt-0.5">
+                    Search and select artists from the database.
+                  </p>
+                </div>
+                <a
+                  href="/admin/artists"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] text-pink-500 hover:text-pink-600 font-bold flex items-center gap-1 self-start sm:self-center"
+                >
+                  Go to Artist Management ↗
+                </a>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-3">
+                <ArtistSearchDropdown
+                  label="Actors"
+                  placeholder="Type name to search..."
+                  type="actor"
+                  selected={form.cast?.actors || []}
+                  onChange={(val) =>
+                    setForm({ ...form, cast: { ...form.cast, actors: val } })
+                  }
+                  disabled={submitting}
+                  notify={notify}
+                />
+
+                <ArtistSearchDropdown
+                  label="Directors"
+                  placeholder="Type name to search..."
+                  type="director"
+                  selected={form.cast?.directors || []}
+                  onChange={(val) =>
+                    setForm({ ...form, cast: { ...form.cast, directors: val } })
+                  }
+                  disabled={submitting}
+                  notify={notify}
+                />
+
+                <ArtistSearchDropdown
+                  label="Writers"
+                  placeholder="Type name to search..."
+                  type="writer"
+                  selected={form.cast?.writers || []}
+                  onChange={(val) =>
+                    setForm({ ...form, cast: { ...form.cast, writers: val } })
+                  }
+                  disabled={submitting}
+                  notify={notify}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-2">
+              <MultiSelectField
+                label="Categories / Genres"
+                placeholder="Select genres..."
+                options={genresList}
+                selected={form.genres}
+                onChange={(val) => setForm({ ...form, genres: val.join(", ") })}
+                disabled={submitting}
+              />
+            </div>
+            {editing && !localeDraft?.row && !editing.localizations?.length && (
+            <div className="grid gap-6 sm:grid-cols-2">
+              <ImageUploadField
+                label="Poster Image"
+                hintKey="poster"
+                compact
+                currentUrl={form.posterUrl !== undefined ? form.posterUrl : editing?.posterUrl}
+                file={posterFile}
+                onFileChange={setPosterFile}
+                onClear={() => {
+                  setPosterFile(null);
+                  setForm((prev) => ({ ...prev, posterUrl: "" }));
+
+                }}
+                aspectRatio="2/3"
+                disabled={submitting}
+              />
+              <ImageUploadField
+                label="Banner Image"
+                hintKey="banner"
+                compact
+                currentUrl={form.bannerUrl !== undefined ? form.bannerUrl : editing?.bannerUrl}
+                file={bannerFile}
+                onFileChange={setBannerFile}
+                onClear={() => {
+                  setBannerFile(null);
+                  setForm((prev) => ({ ...prev, bannerUrl: "" }));
+
+                }}
+                aspectRatio="16/9"
+                disabled={submitting}
+              />
+            </div>
+
+            )}
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-3 py-3 border-t border-b border-[var(--admin-border)]">
+              {editing && (
+              <div className="flex items-center gap-2">
+                <label className="switch-lib">
+                  <input
+                    type="checkbox"
+                    checked={!!form.isComingSoon}
+                    onChange={(e) =>
+                      handleFormFlagChange("isComingSoon", e.target.checked)
+                    }
+                  />
+                  <span className="slider-lib"></span>
+                </label>
+                <span className="text-sm font-semibold text-[var(--admin-foreground)]">
+                  Coming Soon
+                </span>
+              </div>
+              )}
+              <div className="flex items-center gap-2">
+                <label className="switch-lib">
+                  <input
+                    className="trend"
+                    type="checkbox"
+                    checked={!!form.isTrending}
+                    onChange={(e) =>
+                      handleFormFlagChange("isTrending", e.target.checked)
+                    }
+                  />
+                  <span className="slider-lib"></span>
+                </label>
+                <span className="text-sm font-semibold text-[var(--admin-foreground)]">
+                  Trending
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="switch-lib">
+                  <input
+                    className="block"
+                    type="checkbox"
+                    checked={!!form.isBlockbuster}
+                    onChange={(e) =>
+                      handleFormFlagChange(
+                        "isBlockbuster",
+                        e.target.checked,
+                      )
+                    }
+                  />
+                  <span className="slider-lib"></span>
+                </label>
+                <span className="text-sm font-semibold text-[var(--admin-foreground)]">
+                  Blockbuster
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="switch-lib">
+                  <input
+                    type="checkbox"
+                    checked={!!form.isFeatured}
+                    onChange={(e) =>
+                      handleFormFlagChange("isFeatured", e.target.checked)
+                    }
+                  />
+                  <span className="slider-lib"></span>
+                </label>
+                <span className="text-sm font-semibold text-[var(--admin-foreground)]">
+                  Featured
+                </span>
+              </div>
+            </div>
+
+            {form.isComingSoon && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
+                  Expected Release Date & Time
+                </label>
+                <Input
+                  type="datetime-local"
+                  value={form.expectedReleaseDate}
+                  onChange={(e) =>
+                    setForm({ ...form, expectedReleaseDate: e.target.value })
+                  }
+                  required={form.isComingSoon}
+                  min={toLocalDatetimeString(new Date())}
+                />
+              </div>
+            )}
+          </fieldset>
+        </form>
+        {editing && canEdit && <div className="mt-5 flex flex-wrap items-center justify-end gap-2 border-t border-[var(--admin-border)] pt-4">
+          <span className="mr-auto text-sm text-[var(--admin-muted)]">{editing.isActive ? "Published" : "Draft"}</span>
+          <Button type="button" variant="outline" disabled={submitting} onClick={() => updatePublication("draft")}>Save Draft</Button>
+          <Button type="button" disabled={submitting} onClick={() => updatePublication("publish")}>Publish</Button>
+        </div>}
+
+
+      </PageShell>
+    );
+  }
+
   return (
     <PageShell>
       <div className="series-library-admin">
@@ -10364,15 +9389,15 @@ function SeriesView({
             __html: `
           .series-library-admin {
             --bg-lib: transparent;
-            --panel: #ffffff;
-            --panel-2: #f8fafc;
-            --line: #e2e8f0;
-            --line-soft: #f1f5f9;
-            --text-lib: #0f172a;
-            --text-dim: #475569;
-            --text-faint: #64748b;
-            --pink: #ec1f6b;
-            --pink-soft: #fdf2f8;
+            --panel: var(--admin-surface);
+            --panel-2: var(--admin-soft);
+            --line: var(--admin-border);
+            --line-soft: var(--admin-soft);
+            --text-lib: var(--admin-foreground);
+            --text-dim: var(--admin-muted);
+            --text-faint: var(--admin-muted);
+            --pink: var(--admin-primary);
+            --pink-soft: var(--admin-soft);
             --pink-glow: rgba(236,31,107,.15);
             --green: #10b981;
             --green-soft: #ecfdf5;
@@ -10381,7 +9406,7 @@ function SeriesView({
             --purple: #8b5cf6;
             --purple-soft: #f5f3ff;
             --radius: 16px;
-            
+
             color: var(--text-lib);
           }
 
@@ -10481,7 +9506,7 @@ function SeriesView({
           .card-foot-lib { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--line-soft); padding-top: 13px; margin-top: auto; }
           .updated-lib { font-size: 11.5px; color: var(--text-faint); }
           .manage-link-lib { font-size: 12.5px; font-weight: 600; color: var(--pink); display: flex; align-items: center; gap: 4px; cursor: pointer; text-decoration: none; }
-          
+
           /* Table Styles */
           .table-lib { width: 100%; border-collapse: collapse; text-align: left; }
           .table-lib th { padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--panel-2); color: var(--text-dim); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -10516,16 +9541,9 @@ function SeriesView({
               Manage all your OTT series, episodes, and related content.
             </p>
           </div>
-          <button
-            className="btn-add-lib"
-            onClick={() => {
-              setEditing(null);
-              setOpen(true);
-            }}
-          >
-            <Plus size={16} />
-            Add series
-          </button>
+          <Link className="btn-add-lib" href="/admin/series/new">
+            <Plus size={16} /> Add Series
+          </Link>
         </div>
 
         {/* ── Stats row ── */}
@@ -10685,10 +9703,7 @@ function SeriesView({
                 nowTime={nowTime}
                 onToggleFlag={handleToggleFlag}
                 onPrefetch={handlePrefetchSeriesDetail}
-                onEdit={(s) => {
-                  setEditing(s);
-                  setOpen(true);
-                }}
+                onEdit={(series) => router.push(`/admin/series/${series._id || series.id}/edit`)}
                 onDelete={handleDelete}
                 router={router}
               />
@@ -10733,7 +9748,7 @@ function SeriesView({
                       <tr key={sid}>
                         <td>
                           <Link
-                            href={`/series/${series.slug}`}
+                            href={`/admin/series/${series._id || series.id}`}
                             className="flex items-center gap-3 hover:opacity-85 transition"
                           >
                             <div className="h-12 w-16 shrink-0 rounded-lg overflow-hidden bg-[var(--admin-soft)]">
@@ -10753,6 +9768,7 @@ function SeriesView({
                               <p className="font-bold text-sm text-[var(--admin-foreground)]">
                                 {series.title}
                               </p>
+                              <PrimaryLanguageTag code={series.primaryLanguage} />
                               <p className="text-xs text-[var(--admin-muted)] truncate max-w-[200px]">
                                 {(series.genres || []).join(", ")}
                               </p>
@@ -10836,7 +9852,7 @@ function SeriesView({
                         <td>
                           <div className="flex items-center justify-end gap-1">
                             <Link
-                              href={`/admin/seasons?series=${series.slug || String(series.title || "").toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                              href={`/admin/series/${series._id || series.id}/edit?section=seasons`}
                               className="flex items-center gap-1 text-[11px] font-bold text-[var(--admin-accent)] border border-[var(--admin-border)] rounded-lg px-2.5 py-1.5 hover:bg-[var(--admin-soft)] transition"
                             >
                               Manage <ChevronRight size={11} />
@@ -10853,10 +9869,7 @@ function SeriesView({
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem
-                                  onSelect={() => {
-                                    setEditing(series);
-                                    setOpen(true);
-                                  }}
+                                  onSelect={() => router.push(`/admin/series/${sid}/edit`)}
                                 >
                                   <Pencil size={14} /> Edit
                                 </DropdownMenuItem>
@@ -10921,345 +9934,7 @@ function SeriesView({
         </div>
       </div>
 
-      {/* ── Add / Edit Dialog ── */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-5xl w-[min(1120px,calc(100vw-32px))]">
-          <form onSubmit={handleSubmit} className="flex flex-col h-full max-h-[92vh]">
-            <DialogHeader>
-              <DialogTitle className="font-display text-xl font-bold text-[var(--admin-foreground)]">
-                {editing ? "Edit Series Information" : "Add New Series"}
-              </DialogTitle>
-              <DialogDescription className="text-sm text-[var(--admin-muted)] mt-1">
-                Configure web series metadata, themes, ratings, banners, categories, and flags.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogBody className="space-y-6 series-library-admin">
-            <div className="grid gap-6 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
-                  Title
-                </label>
-                <Input
-                  value={form.title}
-                  onChange={(e) => {
-                    const newTitle = e.target.value;
-                    setForm((prev) => ({
-                      ...prev,
-                      title: newTitle,
-                      slug: slugify(newTitle),
-                    }));
-                  }}
-                  required
-                />
-                <p className="text-[11px] text-[var(--admin-muted)] font-mono mt-1">
-                  Slug: <span className="text-[var(--admin-primary)] font-semibold">{form.slug || slugify(form.title) || "-"}</span>
-                </p>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
-                  Theme Color
-                </label>
-                <div className="flex gap-2">
-                  <Input
-                    type="color"
-                    value={(() => {
-                      const val = form.color || "0xFF1A1A2E";
-                      if (val.startsWith("0xFF") && val.length === 10)
-                        return `#${val.slice(4)}`;
-                      if (val.startsWith("#")) return val;
-                      return "#1A1A2E";
-                    })()}
-                    onChange={(e) => {
-                      const hex = e.target.value;
-                      setForm({
-                        ...form,
-                        color: `0xFF${hex.slice(1).toUpperCase()}`,
-                      });
-                    }}
-                    className="w-12 h-10 p-1 cursor-pointer"
-                  />
-                  <Input
-                    type="text"
-                    value={form.color || ""}
-                    onChange={(e) =>
-                      setForm({ ...form, color: e.target.value })
-                    }
-                    placeholder="e.g. 0xFF1A1A2E"
-                    className="flex-grow font-mono text-xs"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="grid gap-6 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
-                  Release Year
-                </label>
-                <Input
-                  type="number"
-                  value={form.releaseYear}
-                  onChange={(e) =>
-                    setForm({ ...form, releaseYear: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
-                  Age Rating
-                </label>
-                <Select
-                  value={form.ageRating}
-                  onChange={(e) =>
-                    setForm({ ...form, ageRating: e.target.value })
-                  }
-                >
-                  <option value="">Select Age Rating</option>
-                  <option value="U">U (All Ages)</option>
-                  <option value="U/A 7+">U/A 7+</option>
-                  <option value="U/A 13+">U/A 13+</option>
-                  <option value="U/A 16+">U/A 16+</option>
-                  <option value="A 18+">A 18+</option>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
-                Description
-              </label>
-              <Textarea
-                value={form.description}
-                onChange={(e) =>
-                  setForm({ ...form, description: e.target.value })
-                }
-                rows={4}
-              />
-            </div>
 
-            {/* Cast & Crew Management */}
-            <div className="rounded-[var(--radius-sm)] border border-[var(--admin-border)] bg-[var(--admin-surface)] p-5 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[var(--admin-border)] pb-3">
-                <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--admin-foreground)]">
-                    Cast &amp; Crew
-                  </h4>
-                  <p className="text-[10px] text-[var(--admin-muted)] mt-0.5">
-                    Search and select artists from the database.
-                  </p>
-                </div>
-                <a
-                  href="/admin/artists"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[10px] text-pink-500 hover:text-pink-600 font-bold flex items-center gap-1 self-start sm:self-center"
-                >
-                  Go to Artist Management ↗
-                </a>
-              </div>
-
-              <div className="grid gap-6 md:grid-cols-3">
-                <ArtistSearchDropdown
-                  label="Actors"
-                  placeholder="Type name to search..."
-                  type="actor"
-                  selected={form.cast?.actors || []}
-                  onChange={(val) =>
-                    setForm({ ...form, cast: { ...form.cast, actors: val } })
-                  }
-                  disabled={submitting}
-                  notify={notify}
-                />
-
-                <ArtistSearchDropdown
-                  label="Directors"
-                  placeholder="Type name to search..."
-                  type="director"
-                  selected={form.cast?.directors || []}
-                  onChange={(val) =>
-                    setForm({ ...form, cast: { ...form.cast, directors: val } })
-                  }
-                  disabled={submitting}
-                  notify={notify}
-                />
-
-                <ArtistSearchDropdown
-                  label="Writers"
-                  placeholder="Type name to search..."
-                  type="writer"
-                  selected={form.cast?.writers || []}
-                  onChange={(val) =>
-                    setForm({ ...form, cast: { ...form.cast, writers: val } })
-                  }
-                  disabled={submitting}
-                  notify={notify}
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-6 sm:grid-cols-2">
-              <MultiSelectField
-                label="Categories / Genres"
-                placeholder="Select genres..."
-                options={genresList}
-                selected={form.genres}
-                onChange={(val) => setForm({ ...form, genres: val.join(", ") })}
-                disabled={submitting}
-              />
-              <MultiSelectField
-                label="Languages"
-                placeholder="Select languages..."
-                options={languagesList}
-                selected={form.language}
-                onChange={(val) =>
-                  setForm({ ...form, language: val.join(", ") })
-                }
-                disabled={submitting}
-              />
-            </div>
-
-            <div className="grid gap-6 sm:grid-cols-2">
-              <ImageUploadField
-                label="Poster Image"
-                currentUrl={form.posterUrl !== undefined ? form.posterUrl : editing?.posterUrl}
-                file={posterFile}
-                onFileChange={setPosterFile}
-                onClear={() => {
-                  setPosterFile(null);
-                  setForm((prev) => ({ ...prev, posterUrl: "" }));
-                  if (editing) editing.posterUrl = "";
-                }}
-                aspectRatio="2/3"
-                disabled={submitting}
-              />
-              <ImageUploadField
-                label="Banner Image"
-                currentUrl={form.bannerUrl !== undefined ? form.bannerUrl : editing?.bannerUrl}
-                file={bannerFile}
-                onFileChange={setBannerFile}
-                onClear={() => {
-                  setBannerFile(null);
-                  setForm((prev) => ({ ...prev, bannerUrl: "" }));
-                  if (editing) editing.bannerUrl = "";
-                }}
-                aspectRatio="16/9"
-                disabled={submitting}
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center gap-x-8 gap-y-3 py-3 border-t border-b border-[var(--admin-border)]">
-              <div className="flex items-center gap-2">
-                <label className="switch-lib">
-                  <input
-                    type="checkbox"
-                    checked={!!form.isComingSoon}
-                    onChange={(e) =>
-                      handleFormFlagChange("isComingSoon", e.target.checked)
-                    }
-                  />
-                  <span className="slider-lib"></span>
-                </label>
-                <span className="text-sm font-semibold text-[var(--admin-foreground)]">
-                  Coming Soon
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="switch-lib">
-                  <input
-                    className="trend"
-                    type="checkbox"
-                    checked={!!form.isTrending}
-                    onChange={(e) =>
-                      handleFormFlagChange("isTrending", e.target.checked)
-                    }
-                  />
-                  <span className="slider-lib"></span>
-                </label>
-                <span className="text-sm font-semibold text-[var(--admin-foreground)]">
-                  Trending
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="switch-lib">
-                  <input
-                    className="block"
-                    type="checkbox"
-                    checked={!!form.isBlockbuster}
-                    onChange={(e) =>
-                      handleFormFlagChange(
-                        "isBlockbuster",
-                        e.target.checked,
-                      )
-                    }
-                  />
-                  <span className="slider-lib"></span>
-                </label>
-                <span className="text-sm font-semibold text-[var(--admin-foreground)]">
-                  Blockbuster
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="switch-lib">
-                  <input
-                    type="checkbox"
-                    checked={!!form.isFeatured}
-                    onChange={(e) =>
-                      handleFormFlagChange("isFeatured", e.target.checked)
-                    }
-                  />
-                  <span className="slider-lib"></span>
-                </label>
-                <span className="text-sm font-semibold text-[var(--admin-foreground)]">
-                  Featured
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="switch-lib">
-                  <input
-                    type="checkbox"
-                    checked={!!form.isActive}
-                    onChange={(e) =>
-                      handleFormFlagChange("isActive", e.target.checked)
-                    }
-                  />
-                  <span className="slider-lib"></span>
-                </label>
-                <span className="text-sm font-semibold text-[var(--admin-foreground)]">
-                  Active
-                </span>
-              </div>
-            </div>
-
-            {form.isComingSoon && (
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
-                  Expected Release Date & Time
-                </label>
-                <Input
-                  type="datetime-local"
-                  value={form.expectedReleaseDate}
-                  onChange={(e) =>
-                    setForm({ ...form, expectedReleaseDate: e.target.value })
-                  }
-                  required={form.isComingSoon}
-                  min={toLocalDatetimeString(new Date())}
-                />
-              </div>
-            )}
-            </DialogBody>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting ? "Saving..." : "Save Series"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
       <ComingSoonModal
         isOpen={comingSoonModal.isOpen}
         onClose={() =>
@@ -11474,8 +10149,77 @@ function createMultipartUpload(file, folder, onProgress) {
   return controller;
 }
 
+async function uploadTrailerParts(file, onProgress) {
+  const partSize = Math.max(5 * 1024 ** 2, Math.ceil(file.size / 100));
+  const count = Math.ceil(file.size / partSize);
+  async function request(action, payload, signal) {
+    const response = await fetch(`/api/admin/upload/multipart/${action}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal,
+    });
+    const result = await readJsonResponse(response);
+    if (!response.ok || !result.success) throw new Error(result.message || "Trailer upload failed.");
+    return result;
+  }
+
+  const { key, uploadId } = await request("initiate", {
+    filename: file.name, contentType: file.type, folder: "trailers",
+  });
+  const session = { key, uploadId };
+  const controller = new AbortController();
+  const { signal } = controller;
+  const sizes = new Array(count).fill(0);
+  let next = 0;
+
+  function putPart(url, chunk, index) {
+    return new Promise((resolve, reject) => {
+      signal.throwIfAborted();
+      const xhr = new XMLHttpRequest();
+      const abort = () => xhr.abort();
+      xhr.open("PUT", url);
+      xhr.upload.onprogress = (event) => {
+        sizes[index] = event.loaded;
+        onProgress?.(Math.min(99, Math.floor(100 * sizes.reduce((sum, size) => sum + size, 0) / file.size)));
+      };
+      xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`S3 rejected a trailer part (HTTP ${xhr.status}).`));
+      xhr.onerror = () => reject(new Error("Could not reach S3. Check the connection and bucket CORS."));
+      xhr.onabort = () => reject(signal.reason);
+      xhr.onloadend = () => signal.removeEventListener("abort", abort);
+      signal.addEventListener("abort", abort, { once: true });
+      xhr.send(chunk);
+    });
+  }
+
+  async function worker() {
+    while (next < count) {
+      signal.throwIfAborted();
+      const index = next++;
+      const { signedUrl } = await request("part-url", { ...session, partNumber: index + 1 }, signal);
+      const chunk = file.slice(index * partSize, (index + 1) * partSize);
+      await putPart(signedUrl, chunk, index);
+      sizes[index] = chunk.size;
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(4, count) }, worker);
+  try {
+    await Promise.all(workers);
+    const result = await request("complete", { ...session, expectedParts: count });
+    onProgress?.(100);
+    return { url: result.url, key };
+  } catch (error) {
+    controller.abort();
+    await Promise.allSettled(workers);
+    await request("complete", { ...session, abort: true }).catch(() => {});
+    throw error;
+  }
+}
+
 // Legacy single-part presigned upload for small files / other uses
 async function uploadToS3(file, folder, onProgress) {
+  if (folder === "trailers" && file.size >= 12 * 1024 ** 2) return uploadTrailerParts(file, onProgress);
   const res = await fetch("/api/admin/upload/presigned", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -11496,13 +10240,13 @@ async function uploadToS3(file, folder, onProgress) {
       }
     };
     xhr.onload = () => {
-      if (xhr.status === 200) {
+      if (xhr.status >= 200 && xhr.status < 300) {
         resolve({ url: data.url, key: data.key });
       } else {
-        reject(new Error("S3 upload failed"));
+        reject(new Error(`S3 rejected the upload (HTTP ${xhr.status}). Check bucket permissions.`));
       }
     };
-    xhr.onerror = () => reject(new Error("S3 upload failed"));
+    xhr.onerror = () => reject(new Error("Could not reach S3. Check the connection and bucket CORS for this admin URL."));
     xhr.open("PUT", data.uploadUrl);
     xhr.setRequestHeader("Content-Type", file.type);
     xhr.send(file);
@@ -11641,6 +10385,7 @@ function SeasonTrailerManager({ trailers, setTrailers, languagesList }) {
 
 function SeasonsView({
   data,
+  studio = false,
   loading,
   refresh,
   notify,
@@ -11651,6 +10396,7 @@ function SeasonsView({
 }) {
   const [seasons, setSeasons] = useState([]);
   const [loadingSeasons, setLoadingSeasons] = useState(false);
+  const [seriesIds, setRecommendationIds] = useState([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const router = useRouter();
@@ -11851,6 +10597,7 @@ function SeasonsView({
       setTrailers([]);
       setSelectedCast({ actors: [], directors: [], writers: [] });
     }
+    setRecommendationIds(editing?.seriesIds ?? []);
   }, [editing, open, seasons.length]);
 
   async function handleSubmit(e) {
@@ -11867,6 +10614,7 @@ function SeasonsView({
         isActive: form.isActive !== false,
         trailers,
         cast: selectedCast,
+        seriesIds,
       };
 
       let url = `/api/admin/series/${selectedSeriesId}/seasons`;
@@ -12004,6 +10752,7 @@ function SeasonsView({
                 )}
               <Select
                 value={selectedSeriesId}
+                disabled={studio}
                 onChange={(e) => setSelectedSeriesId(e.target.value)}
                 className="bg-transparent border-none focus:ring-0 p-0 text-sm font-bold text-[var(--admin-foreground)] cursor-pointer pr-8"
               >
@@ -12423,9 +11172,8 @@ function SeasonsView({
                       <Button
                         variant="outline"
                         onClick={() => {
-                          const seriesSlug = activeSeries?.slug || String(activeSeries?.title || "").toLowerCase().replace(/[^a-z0-9]+/g, '-');
                           router.push(
-                            `/admin/episodes?series=${seriesSlug}&season=${season.seasonNumber}`,
+                            `/admin/series/${selectedSeriesId}/edit?section=episodes&season=${season.seasonNumber}`,
                           );
                         }}
                         className="w-full mt-2 border-[var(--admin-primary)] text-[var(--admin-primary)] hover:bg-[var(--admin-soft)] flex items-center justify-center gap-1.5 text-xs font-bold"
@@ -12558,6 +11306,7 @@ function SeasonsView({
               </div>
 
               {renderCastChecklist()}
+              {open && <RecommendationEditor type="series" sourceId={selectedSeriesId} ids={seriesIds} setIds={setRecommendationIds} />}
             </DialogBody>
 
             <DialogFooter>
@@ -12901,7 +11650,7 @@ function CompactVideoUploader({
             src={urlVal}
             controls
             preload="metadata"
-            className="w-full h-full object-cover"
+            className="tvk-wide-preview h-full w-full"
           />
         </div>
 
@@ -12941,26 +11690,7 @@ function CompactVideoUploader({
           </span>
         </div>
 
-        {/* Progress bar */}
-        <div className="space-y-1">
-          <div className="flex justify-between items-center">
-            <span
-              className={`text-[10px] font-black ${isPaused ? "text-amber-600" : "text-blue-600"}`}
-            >
-              {isPaused ? "⏸ Paused" : `Uploading`} — {prog}%
-            </span>
-          </div>
-          <div className="h-2 w-full bg-[var(--admin-soft)] rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-300 ${
-                isPaused
-                  ? "bg-amber-400"
-                  : "bg-gradient-to-r from-blue-500 to-cyan-400"
-              }`}
-              style={{ width: `${prog}%` }}
-            />
-          </div>
-        </div>
+        <VideoUploadProgress percent={prog} paused={isPaused} />
 
         {/* Speed + ETA */}
         {!isPaused && (
@@ -13255,6 +11985,7 @@ function CompactSubtitleUploader({ langName, existingUrl, onFileChange, submitti
 
 function EpisodesView({
   data,
+  studio = false,
   loading,
   refresh,
   notify,
@@ -13281,6 +12012,7 @@ function EpisodesView({
     isActive: true,
   });
   const [thumbnailFile, setThumbnailFile] = useState(null);
+  const episodeDurationRequest = useRef(0);
   const [videoFile, setVideoFile] = useState(null);
   const [languagesData, setLanguagesData] = useState([]);
   const [activeTab, setActiveTab] = useState("");
@@ -13397,6 +12129,10 @@ function EpisodesView({
   const activeSeries = seriesList.find(
     (s) => (s._id || s.id) === selectedSeriesId,
   );
+  const canUploadLanguage = (language) => activeSeries?.uploadLanguages?.includes(language) ??
+    activeSeries?.localizations?.some((row) => isLocalizationReady(row) &&
+      (row.language === language || languageNames.of(row.language) === language));
+
   const activeSeason = seasons.find(
     (s) => (s._id || s.id) === selectedSeasonId,
   );
@@ -13742,8 +12478,12 @@ function EpisodesView({
     return Object.keys(nextErrors).length === 0;
   }
 
+  useEffect(() => () => { episodeDurationRequest.current += 1; }, [editing, open]);
+
   async function handleEpisodeVideoFile(file) {
+    const request = ++episodeDurationRequest.current;
     setVideoFile(file || null);
+    setFormValue("duration", file ? "" : (editing?.duration || ""));
     setFormErrors((current) => {
       const next = { ...current };
       delete next.duration;
@@ -13751,15 +12491,14 @@ function EpisodesView({
       return next;
     });
 
-    if (!file) {
-      if (!editing) setFormValue("duration", "");
-      return;
-    }
+    if (!file) return;
 
     try {
       const duration = await readVideoDuration(file);
-      setFormValue("duration", duration || "");
+      if (!Number.isFinite(duration) || duration <= 0) throw new Error("Could not detect duration. Choose a playable video.");
+      if (request === episodeDurationRequest.current) setFormValue("duration", duration);
     } catch (error) {
+      if (request !== episodeDurationRequest.current) return;
       setFormValue("duration", "");
       setFormErrors((current) => ({
         ...current,
@@ -13976,10 +12715,11 @@ function EpisodesView({
                 onClick={() => {
                   setEditTab(tab.id);
                 }}
+                aria-pressed={editTab === tab.id}
                 className={cn(
                   "py-3 text-xs font-bold relative border-b-2 transition-colors",
                   editTab === tab.id
-                    ? "border-[var(--admin-accent)] text-[var(--admin-accent)]"
+                    ? "border-[var(--admin-primary)] text-[var(--admin-primary)]"
                     : "border-transparent text-[var(--admin-muted)] hover:text-[var(--admin-foreground)]",
                 )}
               >
@@ -13990,9 +12730,9 @@ function EpisodesView({
 
           {/* Workspace Body */}
           <div className="p-6">
-            {formErrors.form && (
-              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700">
-                {formErrors.form}
+            {(formErrors.form || formErrors.duration || (editTab !== "details" && formErrors.episodeNumber)) && (
+              <div role="alert" className="tvk-validation mb-4 text-sm font-semibold">
+                {formErrors.form || formErrors.duration || formErrors.episodeNumber}
               </div>
             )}
 
@@ -14019,7 +12759,7 @@ function EpisodesView({
                       required
                     />
                     {formErrors.episodeNumber && (
-                      <p className="mt-1 text-xs font-semibold text-red-600">
+                      <p role="alert" className="tvk-validation mt-1 text-xs font-semibold">
                         {formErrors.episodeNumber}
                       </p>
                     )}
@@ -14029,10 +12769,11 @@ function EpisodesView({
                       Duration (seconds)
                     </label>
                     <Input
-                      type="number"
+                      readOnly
+                      aria-label="Episode duration in seconds"
                       value={form.duration}
-                      onChange={(e) => setFormValue("duration", e.target.value)}
-                      placeholder="Will auto-detect from video if blank"
+                      className="cursor-default bg-[var(--admin-soft)] text-[var(--admin-muted)]"
+                      placeholder="Detected from video"
                     />
                   </div>
                 </div>
@@ -14229,10 +12970,11 @@ function EpisodesView({
                             key={lang.language}
                             type="button"
                             onClick={() => setActiveTab(lang.language)}
+                            aria-pressed={activeTab === lang.language}
                             className={cn(
                               "px-3 py-1.5 text-xs font-bold rounded-t-md transition-colors border-t border-x",
                               activeTab === lang.language
-                                ? "bg-[var(--admin-soft)] border-[var(--admin-border)] text-[var(--admin-accent)] border-b-transparent font-black"
+                                ? "bg-[var(--admin-soft)] border-[var(--admin-border)] text-[var(--admin-primary)] border-b-transparent font-black"
                                 : "border-transparent text-[var(--admin-muted)] hover:text-[var(--admin-foreground)]",
                             )}
                           >
@@ -14244,6 +12986,11 @@ function EpisodesView({
                       {/* Tab content quality columns uploader */}
                       {languagesData.map((lang) => {
                         if (lang.language !== activeTab) return null;
+                        if (!canUploadLanguage(lang.language)) {
+                          return <p key={lang.language} role="alert" className="tvk-validation text-sm">
+                            Save {lang.language} title, description, poster, and banner in Series Details before uploading.
+                          </p>;
+                        }
                         const qualities = [
                           "4k",
                           "1080p",
@@ -14471,7 +13218,7 @@ function EpisodesView({
                       className="flex items-center justify-between text-xs pb-3 border-b border-[var(--admin-border)] last:border-b-0 last:pb-0"
                     >
                       <span className="font-bold">{lang.language}</span>
-                      <CompactSubtitleUploader
+                      {canUploadLanguage(lang.language) ? <CompactSubtitleUploader
                         langName={lang.language}
                         existingUrl={lang.subtitleFile}
                         onFileChange={(url) =>
@@ -14482,7 +13229,7 @@ function EpisodesView({
                           )
                         }
                         submitting={submitting}
-                      />                    </div>
+                      /> : <span role="alert" className="tvk-validation">Save this language in Series Details before uploading.</span>}                    </div>
                   ))}
                 </div>
                 <div className="flex justify-end pt-4 mt-6 border-t border-[var(--admin-border)]">
@@ -14526,6 +13273,7 @@ function EpisodesView({
                 )}
               <Select
                 value={selectedSeriesId}
+                disabled={studio}
                 onChange={(e) => setSelectedSeriesId(e.target.value)}
                 className="bg-transparent border-none focus:ring-0 p-0 text-sm font-bold text-[var(--admin-foreground)] cursor-pointer pr-8 w-full"
               >
@@ -14607,9 +13355,8 @@ function EpisodesView({
             <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
               <Button
                 onClick={() => {
-                  const seriesSlug = activeSeries?.slug || String(activeSeries?.title || "").toLowerCase().replace(/[^a-z0-9]+/g, '-');
                   router.push(
-                    `/admin/bulk-episodes?series=${seriesSlug}&season=${activeSeason?.seasonNumber || 1}`,
+                    `/admin/series/${selectedSeriesId}/edit?section=bulk&season=${activeSeason?.seasonNumber || 1}`,
                   );
                 }}
                 className="bg-[var(--admin-soft)] hover:bg-[var(--admin-border)] border border-[var(--admin-border)] text-[var(--admin-foreground)] h-9 text-xs font-bold px-3 flex items-center gap-1.5 shrink-0"
@@ -15041,6 +13788,7 @@ function EpisodesView({
 
 function BulkEpisodesView({
   data,
+  studio = false,
   loading,
   refresh,
   notify,
@@ -15411,6 +14159,11 @@ function BulkEpisodesView({
 
   const handleCellUpload = async (file, rowId, lang, type, quality) => {
     if (!file) return;
+    if (!(activeSeries?.uploadLanguages?.includes(lang) ?? activeSeries?.localizations?.some((row) =>
+      isLocalizationReady(row) && (row.language === lang || languagesList.some((option) => option.code === row.language && option.englishName === lang))))) {
+      notify(`Save ${lang} title, description, poster, and banner in Series Details before uploading.`, "error");
+      return;
+    }
     const cellKey = `${rowId}_${lang}_${type === "subtitle" ? "subtitle" : quality}`;
 
     if (uploadControllersRef.current[cellKey]) {
@@ -16876,6 +15629,7 @@ Supported Qualities: 4k, 1080p, 720p, 480p, 360p
                 <select
                   className="form-select bg-[#181C35] border border-[rgba(255,255,255,0.08)] text-white text-xs p-2.5 rounded-lg w-full"
                   value={selectedSeriesId}
+                disabled={studio}
                   onChange={(e) => setSelectedSeriesId(e.target.value)}
                   required
                 >
@@ -18413,711 +17167,524 @@ Supported Qualities: 4k, 1080p, 720p, 480p, 360p
   );
 }
 
-function TrailersView({
-  data,
-  loading,
-  filters,
-  setFilters,
-  setPage,
-  refresh,
-  notify,
-  selectedSeriesId,
-  setSelectedSeriesId,
-  selectedSeriesTitle,
-  setSelectedSeriesTitle,
-}) {
-  // Series/Season selection
-  const [seasons, setSeasons] = useState([]);
-  const [selectedSeasonId, setSelectedSeasonId] = useState("");
-  const [loadingSeasons, setLoadingSeasons] = useState(false);
-
-  // Current trailer document for the selected season
-  const [currentTrailer, setCurrentTrailer] = useState(null);
-  const [loadingTrailer, setLoadingTrailer] = useState(false);
-
-  // Simple video trailer state
-  const [videoUrl, setVideoUrl] = useState("");
-  const [videoKey, setVideoKey] = useState("");
-  const [duration, setDuration] = useState(0);
-  const [fileSize, setFileSize] = useState(null);
-  const [mimeType, setMimeType] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  const seriesList = data?.series || [];
-
-  // Load seasons when series changes
-  async function loadSeasons() {
-    if (!selectedSeriesId) {
-      setSeasons([]);
-      setSelectedSeasonId("");
-      return;
-    }
-    setLoadingSeasons(true);
-    try {
-      const res = await apiFetch(
-        `/api/admin/series/${selectedSeriesId}/seasons`,
-      );
-      const list = res.seasons || [];
-      setSeasons(list);
-      if (list.length) setSelectedSeasonId(list[0]._id || list[0].id);
-      else setSelectedSeasonId("");
-    } catch (err) {
-      notify(err.message, "error");
-    } finally {
-      setLoadingSeasons(false);
-    }
-  }
+function AuditView() {
+  const [page, setPage] = useState(1);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    loadSeasons();
-  }, [selectedSeriesId]);
-
-  // Load existing trailer for the selected season
-  async function loadTrailer() {
-    if (!selectedSeriesId || !selectedSeasonId) {
-      setCurrentTrailer(null);
-      setVideoUrl("");
-      setVideoKey("");
-      setDuration(0);
-      setFileSize(null);
-      setMimeType(null);
-      return;
-    }
-    setLoadingTrailer(true);
-    try {
-      const res = await apiFetch(
-        `/api/admin/trailers?seasonId=${selectedSeasonId}`,
-      );
-      const found = res.trailers?.[0] || null;
-      setCurrentTrailer(found);
-      setVideoUrl(found?.videoUrl || "");
-      setVideoKey(found?.videoKey || "");
-      setDuration(found?.duration || 0);
-      setFileSize(found?.fileSize || null);
-      setMimeType(found?.mimeType || null);
-    } catch (err) {
-      notify(err.message, "error");
-    } finally {
-      setLoadingTrailer(false);
-    }
-  }
-
-  useEffect(() => {
-    loadTrailer();
-  }, [selectedSeriesId, selectedSeasonId]);
-
-  const setVideoFile = (uploadData) => {
-    if (!uploadData) {
-      setVideoUrl("");
-      setVideoKey("");
-      setDuration(0);
-      setFileSize(null);
-      setMimeType(null);
-    } else {
-      setVideoUrl(uploadData.url || "");
-      setVideoKey(uploadData.key || "");
-      setDuration(uploadData.duration || 0);
-      setFileSize(uploadData.size || null);
-      setMimeType(uploadData.type || null);
-    }
-  };
-
-  async function handleSave() {
-    if (!selectedSeriesId || !selectedSeasonId)
-      return notify("Select a series and season first", "error");
-    if (!videoUrl) return notify("Please upload a video file first", "error");
-    setSubmitting(true);
-    try {
-      const payload = {
-        seriesId: selectedSeriesId,
-        seasonId: selectedSeasonId,
-        videoUrl,
-        videoKey,
-        duration,
-        fileSize,
-        mimeType,
-        isActive: true,
-      };
-      const url = currentTrailer
-        ? `/api/admin/trailers/${currentTrailer._id || currentTrailer.id}`
-        : "/api/admin/trailers";
-      const method = currentTrailer ? "PUT" : "POST";
-      const body = JSON.stringify(payload);
-      const response = await fetch(url, {
-        method,
-        headers: { "content-type": "application/json" },
-        body,
-      });
-      const res = await readJsonResponse(response);
-      if (!response.ok || !res.success)
-        throw new Error(res.message || "Save failed");
-      notify(currentTrailer ? "Trailer updated" : "Trailer created");
-      loadTrailer();
-      refresh();
-    } catch (err) {
-      notify(err.message, "error");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function handleDelete() {
-    if (!currentTrailer) return;
-    if (!confirm("Delete this season trailer?")) return;
-    try {
-      const response = await fetch(
-        `/api/admin/trailers/${currentTrailer._id || currentTrailer.id}`,
-        { method: "DELETE" },
-      );
-      const res = await readJsonResponse(response);
-      if (!response.ok || !res.success)
-        throw new Error(res.message || "Delete failed");
-      notify("Trailer deleted");
-      setCurrentTrailer(null);
-      setVideoUrl("");
-      setVideoKey("");
-      setDuration(0);
-      setFileSize(null);
-      setMimeType(null);
-      refresh();
-    } catch (err) {
-      notify(err.message, "error");
-    }
-  }
+    let active = true;
+    setResult(null);
+    setError("");
+    apiFetch(`/api/admin/audit?page=${page}`).then((payload) => {
+      if (active) setResult(payload);
+    }).catch((error) => {
+      if (active) setError(error.message);
+    });
+    return () => { active = false; };
+  }, [page]);
 
   return (
     <PageShell>
-      {/* Series + Season selection */}
-      <div className="mb-5 flex flex-wrap gap-4 items-end">
-        <div>
-          <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)] block mb-1">
-            Series
-          </label>
-          <Select
-            value={selectedSeriesId}
-            onChange={(e) => {
-              setSelectedSeriesId(e.target.value);
-              setSelectedSeasonId("");
-            }}
-            className="w-64"
-          >
-            <option value="">-- Choose Series --</option>
-            {seriesList.map((s) => (
-              <option key={s._id || s.id} value={s._id || s.id}>
-                {s.title}
-              </option>
-            ))}
-          </Select>
+      <h1 className="mb-4 text-2xl font-semibold">Audit Log</h1>
+      {error ? <p role="alert" className="tvk-validation text-sm">{error}</p> : !result ? <PinkLoader /> : result.items.length ? (
+        <div className="overflow-x-auto rounded-xl border border-[var(--admin-border)] bg-[var(--admin-surface)]">
+          <table className="w-full text-left text-sm">
+            <thead><tr>{["Time", "Staff", "Role", "Module", "Action", "Record"].map((label) => <th key={label} scope="col" className="p-3">{label}</th>)}</tr></thead>
+            <tbody>{result.items.map((entry) => (
+              <tr key={entry.id} className="border-t border-[var(--admin-border)]">
+                <td className="p-3">{new Date(entry.createdAt).toLocaleString()}</td>
+                <td className="p-3">{entry.staff}</td>
+                <td className="p-3">{entry.role}</td>
+                <td className="p-3">{entry.module}</td>
+                <td className="p-3">{entry.action}</td>
+                <td className="p-3">{entry.recordId || "—"}</td>
+              </tr>
+            ))}</tbody>
+          </table>
         </div>
-        {selectedSeriesId && (
-          <div>
-            <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)] block mb-1">
-              Season
-            </label>
-            <Select
-              value={selectedSeasonId}
-              onChange={(e) => setSelectedSeasonId(e.target.value)}
-              className="w-40"
-              disabled={loadingSeasons}
-            >
-              <option value="">-- Season --</option>
-              {seasons.map((s) => (
-                <option key={s._id || s.id} value={s._id || s.id}>
-                  Season {s.seasonNumber}
-                </option>
-              ))}
-            </Select>
-          </div>
-        )}
-        {selectedSeriesId && selectedSeasonId && (
-          <div className="flex gap-2 ml-auto">
-            {currentTrailer && (
-              <Button
-                variant="outline"
-                onClick={handleDelete}
-                className="text-red-500 border-red-300 hover:bg-red-50"
-              >
-                <Trash2 size={15} className="mr-1" /> Delete Trailer
-              </Button>
-            )}
-            <Button onClick={handleSave} disabled={submitting}>
-              {submitting
-                ? "Saving..."
-                : currentTrailer
-                  ? "Update Trailer"
-                  : "Save Trailer"}
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {!selectedSeriesId || !selectedSeasonId ? (
-        <EmptyState
-          icon={Video}
-          title="Select Series & Season"
-          description="Choose a series and season above to manage its trailer."
-        />
-      ) : loadingTrailer ? (
-        <PinkLoader className="min-h-64" />
-      ) : (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>
-                {currentTrailer ? "Edit Season Trailer" : "New Season Trailer"}
-              </CardTitle>
-              {currentTrailer && (
-                <span className="text-xs bg-emerald-100 text-emerald-700 font-semibold px-2 py-0.5 rounded-full">
-                  Saved
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-[var(--admin-muted)] mt-1">
-              Upload a single video for this trailer. No thumbnail or resolution
-              variations required.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="rounded-md border border-[var(--admin-border)] bg-[var(--admin-soft)] p-4">
-              <div className="max-w-xl">
-                <VideoUploadField
-                  label="Trailer Video File"
-                  currentUrl={videoUrl}
-                  onFileChange={setVideoFile}
-                  onDirectUpload={(f, prog) => uploadToS3(f, "trailers", prog)}
-                />
-              </div>
-            </div>
-
-            {videoUrl && (
-              <div className="rounded-md border border-[var(--admin-border)] bg-[var(--admin-soft)] p-4">
-                <label className="text-xs font-bold uppercase text-[var(--admin-muted)] block mb-2">
-                  Trailer Preview & Playback
-                </label>
-                <div className="relative aspect-video max-w-xl overflow-hidden rounded bg-black">
-                  <video
-                    src={videoUrl}
-                    controls
-                    className="w-full h-full object-contain"
-                    preload="metadata"
-                  />
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      ) : <EmptyState title="No audit entries" />}
+      {result && (page > 1 || page < result.pagination.totalPages) && (
+        <div className="mt-4 flex gap-2">
+          <Button variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button>
+          <Button variant="outline" disabled={page >= result.pagination.totalPages} onClick={() => setPage(page + 1)}>Next</Button>
+        </div>
       )}
     </PageShell>
   );
 }
 
-function BannersView({
-  data,
-  loading,
-  filters,
-  setFilters,
-  setPage,
-  refresh,
-  notify,
-}) {
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [seriesList, setSeriesList] = useState([]);
-  const [loadingSeries, setLoadingSeries] = useState(false);
-  const [form, setForm] = useState({
-    title: "",
-    subtitle: "",
-    linkedContentId: "",
-    linkedContentType: "series",
-    order: "",
-    isActive: true,
-  });
-  const [imageFile, setImageFile] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
+function TrailerLibrary(props) {
+  const [type, setType] = useState(props.selectedSeriesId ? "season" : "movie");
+  return <>
+    <div className="mx-auto flex max-w-[1580px] gap-2 px-4 pt-5 sm:px-6" role="group" aria-label="Trailer type">
+      <Button type="button" variant={type === "movie" ? "primary" : "outline"} aria-pressed={type === "movie"} onClick={() => setType("movie")}>Movie Trailers</Button>
+      <Button type="button" variant={type === "season" ? "primary" : "outline"} aria-pressed={type === "season"} onClick={() => setType("season")}>Series Trailers</Button>
+    </div>
+    {type === "season" ? <TrailersView {...props} /> : <MovieTrailersView notify={props.notify} />}
+  </>;
+}
 
-  const banners = data?.banners || [];
+function MovieTrailersView({ notify }) {
+  const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
+  const [list, setList] = useState(null);
+  const [movie, setMovie] = useState(null);
+  const [language, setLanguage] = useState("");
+  const [error, setError] = useState("");
 
-  async function loadSeries() {
-    setLoadingSeries(true);
-    try {
-      const res = await apiFetch("/api/admin/series?all=true");
-      setSeriesList(res.series || []);
-    } catch (err) {
-      notify(err.message, "error");
-    } finally {
-      setLoadingSeries(false);
-    }
+  useEffect(() => {
+    const controller = new AbortController();
+    const params = new URLSearchParams({ limit: "100", search: query });
+    fetch(`/api/admin/movies?${params}`, { signal: controller.signal, cache: "no-store" })
+      .then(readJsonResponse).then((result) => {
+        if (!result.success) throw new Error(result.message || "Could not load movies.");
+        setList(result);
+      }).catch((err) => { if (!controller.signal.aborted) setError(err.message); });
+    return () => controller.abort();
+  }, [query]);
+
+  function searchMovies(event) {
+    event.preventDefault();
+    const next = search.trim();
+    if (next === query) return;
+    setList(null);
+    setError("");
+    setQuery(next);
   }
 
-  useEffect(() => {
-    if (open) {
-      loadSeries();
-    }
-  }, [open]);
+  const rows = movie?.localizations || [];
+  const row = rows.find((item) => item.language === language) ||
+    rows.find((item) => item.language === movie?.primaryLanguage) || rows[0];
+  const movieTitle = movie && primaryCatalogDetails(movie).title;
 
-  useEffect(() => {
-    if (form.linkedContentId && seriesList.length > 0) {
-      const selected = seriesList.find(
-        (s) => (s._id || s.id) === form.linkedContentId,
-      );
-      if (selected) {
-        setForm((prev) => ({
-          ...prev,
-          title: selected.title || "",
-          subtitle: selected.description || "",
-          linkedContentType: "series",
-        }));
+  return <PageShell>
+    <Card><CardContent className="space-y-4 p-5">
+      <form onSubmit={searchMovies} className="flex max-w-xl items-end gap-2">
+        <label className="flex-1 text-sm">Find a movie
+          <Input className="mt-1" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by title" />
+        </label>
+        <Button type="submit">Search</Button>
+      </form>
+      {error ? <p role="alert" className="tvk-validation text-sm">{error}</p> : !list ? <p role="status" className="text-sm">Loading movies…</p> : (
+        <>
+          <label className="block max-w-xl text-sm">Movie
+            <Select className="mt-1" value={movie?._id || ""} onChange={(event) => {
+              const id = event.target.value;
+              setMovie(list.movies.find((item) => item._id === id) || null);
+              setLanguage("");
+            }}>
+              <option value="">Select a movie</option>
+              {movie && !list.movies.some((item) => item._id === movie._id) && <option value={movie._id}>{movieTitle}</option>}
+              {list.movies.map((item) => <option key={item._id} value={item._id}>{primaryCatalogDetails(item).title}</option>)}
+            </Select>
+          </label>
+          {!list.movies.length && <p className="text-sm text-[var(--admin-muted)]">No movies match this search.</p>}
+          {list.pagination?.total > list.movies.length && <p className="text-sm text-[var(--admin-muted)]">Search by title to narrow the results.</p>}
+        </>
+      )}
+      {movie && (row ? <>
+        <label className="block max-w-xl text-sm">Language
+          <Select className="mt-1" value={row.language} onChange={(event) => setLanguage(event.target.value)}>
+            {rows.map((item) => <option key={item.language} value={item.language}>
+              {languageNames.of(item.language.replaceAll("_", "-"))}{item.language === movie.primaryLanguage ? " · Primary" : ""}
+            </option>)}
+          </Select>
+        </label>
+        <MovieTrailerEditor key={`${movie._id}:${row.language}`} movie={movie} row={row} notify={notify}
+          onSaved={(trailerUrl) => {
+            setMovie((current) => current?._id === movie._id ? { ...current, localizations: current.localizations.map((item) =>
+              item.language === row.language ? { ...item, trailerUrl } : item) } : current);
+            setList((current) => current && ({ ...current, movies: current.movies.map((item) => item._id === movie._id
+              ? { ...item, localizations: item.localizations.map((locale) => locale.language === row.language ? { ...locale, trailerUrl } : locale) }
+              : item) }));
+          }} />
+      </> : <p role="alert" className="tvk-validation text-sm">Save a language in Movie Details first.</p>)}
+    </CardContent></Card>
+  </PageShell>;
+}
+
+function MovieTrailerEditor({ movie, row, onSaved, notify }) {
+  const [file, setFile] = useState(null);
+  const [inputVersion, setInputVersion] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [uploadPercent, setUploadPercent] = useState(null);
+  const [uploaded, setUploaded] = useState(null);
+  const [error, setError] = useState("");
+  const url = row.trailerUrl ?? (row.language === movie.primaryLanguage ? movie.trailerUrl : "");
+
+  function clearFile() {
+    setFile(null);
+    setUploaded(null);
+    setUploadPercent(null);
+    setInputVersion((version) => version + 1);
+  }
+
+  async function save(remove) {
+    if (remove && !window.confirm("Remove the saved trailer for this language?")) return;
+    setSaving(true);
+    setError("");
+    try {
+      const body = new FormData();
+      body.set("trailerAction", remove ? "remove" : "save");
+      body.set("language", row.language);
+      if (!remove) {
+        if (!["video/mp4", "video/webm"].includes(file?.type)) throw new Error("Choose an MP4 or WebM trailer.");
+        setUploadPercent(0);
+        const asset = uploaded?.file === file ? uploaded : { ...await uploadToS3(file, "trailers", setUploadPercent), file };
+        setUploaded(asset);
+        setUploadPercent(100);
+        body.set("videoKey", asset.key);
       }
+      const result = await readJsonResponse(await fetch(`/api/admin/movies/${movie._id}`, { method: "PUT", body }));
+      if (!result.success) throw new Error(result.message || "Could not save the trailer.");
+      onSaved(result.trailerUrl);
+      clearFile();
+      for (const key of apiCache.keys()) {
+        if (key.startsWith("/api/admin/movies")) apiCache.delete(key);
+      }
+      notify?.(remove ? "Trailer removed" : "Trailer saved");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
     }
-  }, [form.linkedContentId, seriesList]);
+  }
+
+  return <section className="space-y-3 border-t border-[var(--admin-border)] pt-4">
+    <label className="block text-sm">Trailer video
+      <Input key={inputVersion} className="mt-1" type="file" accept="video/mp4,video/webm" disabled={saving}
+        onChange={(event) => { setFile(event.target.files[0] ?? null); setUploaded(null); setUploadPercent(null); setError(""); }} />
+    </label>
+    {saving && uploadPercent !== null && <VideoUploadProgress percent={uploadPercent} label={uploadPercent === 100 ? "Saving trailer" : "Uploading"} />}
+    {url && <video controls playsInline preload="metadata" className="aspect-video max-h-60 rounded-lg bg-black" src={url} />}
+    {error && <p role="alert" className="tvk-validation text-sm">{error}</p>}
+    <div className="flex flex-wrap gap-2">
+      <Button type="button" disabled={!file || saving} onClick={() => save(false)}>{saving ? "Saving…" : "Save trailer"}</Button>
+      {file && <Button type="button" variant="outline" disabled={saving} onClick={clearFile}>Remove selected file</Button>}
+      {url && <Button type="button" variant="outline" disabled={saving} onClick={() => save(true)}>Remove saved trailer</Button>}
+    </div>
+    {movie.isActive && <p className="text-sm text-[var(--admin-muted)]">Publish this language in Movie Studio to apply trailer changes to the live movie.</p>}
+  </section>;
+}
+
+function SeasonLanguageTrailers({ seriesId, seasons, language, name, disabled, notify }) {
+  const [selection, setSelection] = useState("");
+  const seasonId = seasons.some((season) => season._id === selection) ? selection : seasons[0]?._id;
+  return <section className="space-y-4 border-t border-[var(--admin-border)] pt-4">
+    <h3 className="font-semibold">{name} season trailers</h3>
+    {seasonId ? <>
+      <label className="block max-w-sm text-sm">Season
+        <Select className="mt-1" value={seasonId} onChange={(event) => setSelection(event.target.value)}>
+          {seasons.map((season) => <option key={season._id} value={season._id}>Season {season.seasonNumber}</option>)}
+        </Select>
+      </label>
+      <SeasonTrailerEditor key={`${seasonId}:${language}`} seriesId={seriesId} seasonId={seasonId}
+        language={language} name={name} disabled={disabled} notify={notify} />
+    </> : <p className="text-sm text-[var(--admin-muted)]">Add a season to upload its trailer.</p>}
+  </section>;
+}
+
+function SeasonTrailerEditor({ seriesId, seasonId, language, name, disabled, notify }) {
+  const [trailer, setTrailer] = useState(null);
+  const [pending, setPending] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [uploadVersion, setUploadVersion] = useState(0);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
-    if (editing) {
-      setForm({
-        title: editing.title || "",
-        subtitle: editing.subtitle || "",
-        linkedContentId: editing.linkedContentId || "",
-        linkedContentType: editing.linkedContentType || "series",
-        order: editing.order || "",
-        isActive: editing.isActive !== false,
-      });
-    } else {
-      setForm({
-        title: "",
-        subtitle: "",
-        linkedContentId: "",
-        linkedContentType: "series",
-        order: banners.length + 1,
-        isActive: true,
-      });
-    }
-    setImageFile(null);
-  }, [editing, open]);
+    const controller = new AbortController();
+    const query = new URLSearchParams({ seriesId, seasonId, language });
+    fetch(`/api/admin/trailers?${query}`, { signal: controller.signal, cache: "no-store" })
+      .then(readJsonResponse)
+      .then((result) => {
+        if (!result.success) throw new Error(result.message || "Could not load the trailer.");
+        setTrailer(result.trailers[0] || null);
+      }).catch((err) => { if (!controller.signal.aborted) setError(err.message); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [seriesId, seasonId, language]);
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (!form.linkedContentId) return notify("Please select a series", "error");
-    setSubmitting(true);
-
+  async function change(remove = false) {
+    if (remove && !window.confirm(`Delete the ${name} trailer for this season?`)) return;
+    setSaving(true);
+    setError("");
     try {
-      const fd = new FormData();
-      Object.entries(form).forEach(([key, val]) => {
-        fd.append(key, val);
-      });
-      if (imageFile) fd.append("image", imageFile);
-
-      const url = editing
-        ? `/api/admin/banners/${editing._id || editing.id}`
-        : "/api/admin/banners";
-      const method = editing ? "PUT" : "POST";
-
-      const response = await fetch(url, { method, body: fd });
-      const payload = await readJsonResponse(response);
-      if (!response.ok || !payload.success)
-        throw new Error(payload.message || "Saving failed");
-
-      notify(editing ? "Banner updated" : "Banner created");
-      setOpen(false);
-      setEditing(null);
-      refresh();
+      const result = await readJsonResponse(await (remove
+        ? fetch(`/api/admin/trailers/${trailer._id}`, { method: "DELETE" })
+        : fetch("/api/admin/trailers", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ seriesId, seasonId, language, videoKey: pending.key,
+            duration: pending.duration, fileSize: pending.size, mimeType: pending.type }),
+        })));
+      if (!result.success) throw new Error(result.message || "Could not save the trailer.");
+      setTrailer(remove ? null : result.trailer);
+      setPending(null);
+      setUploadVersion((version) => version + 1);
+      notify?.(remove ? "Trailer deleted" : `${name} trailer saved`);
     } catch (err) {
-      notify(err.message, "error");
+      setError(err.message);
     } finally {
-      setSubmitting(false);
+      setSaving(false);
     }
   }
 
-  async function handleDelete(id) {
-    const confirmed = await showConfirm("Are you sure you want to delete this banner?");
-    if (!confirmed) return;
+  if (loading) return <p role="status" className="text-sm">Loading trailer…</p>;
+
+  return <div className="space-y-3 rounded-lg border border-[var(--admin-border)] p-4">
+    {error && <p role="alert" className="tvk-validation text-sm">{error}</p>}
+    <VideoUploadField key={uploadVersion} label={`${name} trailer video`} currentUrl={pending?.url || trailer?.videoUrl}
+      disabled={disabled || saving} onFileChange={setPending}
+      onDirectUpload={async (file, progress) => {
+        if (!["video/mp4", "video/webm"].includes(file.type)) throw new Error("Choose an MP4 or WebM trailer.");
+        setPending(null);
+        setUploading(true);
+        try {
+          return await uploadToS3(file, "trailers", progress);
+        } finally {
+          setUploading(false);
+        }
+      }} />
+    <div className="flex flex-wrap gap-2">
+      <Button type="button" disabled={disabled || saving || uploading || !pending} onClick={() => change()}>
+        {saving ? "Saving…" : `Save ${name} trailer`}
+      </Button>
+      {pending && <Button type="button" variant="outline" disabled={saving || uploading}
+        onClick={() => { setPending(null); setUploadVersion((version) => version + 1); }}>Remove selected file</Button>}
+      {trailer && <Button type="button" variant="outline" disabled={disabled || saving || uploading} onClick={() => change(true)}>Remove saved trailer</Button>}
+    </div>
+  </div>;
+}
+
+function TrailersView({ data, notify, selectedSeriesId, setSelectedSeriesId }) {
+  const [detail, setDetail] = useState(null);
+  const [options, setOptions] = useState([]);
+  const [selection, setSelection] = useState("");
+  const [error, setError] = useState("");
+  const seriesList = data?.series || [];
+
+  useEffect(() => {
+    apiFetch("/api/languages").then((result) => setOptions(result.languages || [])).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!selectedSeriesId) return;
+    let active = true;
+    setDetail(null);
+    setError("");
+    setSelection("");
+    apiFetch(`/api/admin/series/${selectedSeriesId}`).then((result) => {
+      if (active) setDetail(result);
+    }).catch((err) => { if (active) setError(err.message); });
+    return () => { active = false; };
+  }, [selectedSeriesId]);
+
+  const currentDetail = detail?.series?._id === selectedSeriesId ? detail : null;
+  const rows = currentDetail?.series?.localizations || [];
+  const row = rows.find(({ language }) => language === selection) ||
+    rows.find(({ language }) => language === currentDetail?.series?.primaryLanguage) || rows[0];
+  const languageName = (code) => options.find((option) => option.code === code)?.englishName || code;
+
+  return <PageShell>
+    <label className="mb-4 block max-w-sm text-sm">Series
+      <Select className="mt-1" value={selectedSeriesId || ""} onChange={(event) => setSelectedSeriesId(event.target.value)}>
+        <option value="">Select a series</option>
+        {seriesList.map((series) => <option key={series._id} value={series._id}>{primaryCatalogDetails(series).title}</option>)}
+      </Select>
+    </label>
+    {error ? <p role="alert" className="tvk-validation text-sm">{error}</p> : selectedSeriesId && !currentDetail ? <PinkLoader /> : currentDetail && (
+      <Card><CardContent className="space-y-4 p-5">
+        {rows.length > 0 && <label className="block max-w-sm text-sm">Language
+          <Select className="mt-1" value={row.language} onChange={(event) => setSelection(event.target.value)}>
+            {rows.map(({ language }) => <option key={language} value={language}>{languageName(language)}</option>)}
+          </Select>
+        </label>}
+        {isLocalizationReady(row) ? <SeasonLanguageTrailers key={row.language} seriesId={selectedSeriesId}
+          seasons={currentDetail.seasons} language={row.language} name={languageName(row.language)} notify={notify} />
+          : <p role="alert" className="tvk-validation text-sm">Save the language title, description, poster, and banner in Series Details before uploading.</p>}
+      </CardContent></Card>
+    )}
+  </PageShell>;
+}
+
+function BannerEditor({ banner, nextOrder, notify }) {
+  const router = useRouter();
+  const [form, setForm] = useState(() => ({
+    title: banner?.title || "", subtitle: banner?.subtitle || "", linkedContentId: banner?.linkedContentId || "",
+    linkedContentType: banner?.linkedContentType || "movie", order: banner?.order ?? nextOrder, isActive: banner?.isActive ?? true,
+  }));
+  const [query, setQuery] = useState("");
+  const [matches, setMatches] = useState(null);
+  const [image, setImage] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [lookupError, setLookupError] = useState("");
+  const change = (fields) => setForm((current) => ({ ...current, ...fields }));
+
+  useEffect(() => {
+    const search = query.trim();
+    if (!search) return;
+    const controller = new AbortController();
+    const resource = form.linkedContentType === "series" ? "series" : "movies";
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams({ picker: "1", search });
+      fetch(`/api/admin/${resource}?${params}`, { signal: controller.signal })
+        .then(readJsonResponse).then((result) => {
+          if (!result.success) throw new Error(result.message || "Could not search titles.");
+          if (!controller.signal.aborted) setMatches(result[resource]);
+        }).catch((err) => { if (!controller.signal.aborted) setLookupError(err.message); });
+    }, 250);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [query, form.linkedContentType]);
+
+  async function save(event) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
     try {
-      const response = await fetch(`/api/admin/banners/${id}`, {
-        method: "DELETE",
-      });
-      const payload = await readJsonResponse(response);
-      if (!response.ok || !payload.success)
-        throw new Error(payload.message || "Deletion failed");
-      notify("Banner deleted");
-      refresh();
+      const body = new FormData();
+      for (const [key, value] of Object.entries(form)) body.set(key, String(value));
+      if (image) body.set("image", image);
+      const result = await readJsonResponse(await fetch(banner ? `/api/admin/banners/${banner._id}` : "/api/admin/banners",
+        { method: banner ? "PUT" : "POST", body }));
+      if (!result.success) throw new Error(result.message || "Banner could not be saved.");
+      for (const key of apiCache.keys()) if (key.startsWith("/api/admin/banners")) apiCache.delete(key);
+      notify(banner ? "Banner updated" : "Banner added");
+      router.push("/admin/banners");
     } catch (err) {
-      notify(err.message, "error");
+      setError(err.message);
+    } finally {
+      setBusy(false);
     }
   }
 
-  async function handleMove(index, direction) {
-    const nextBanners = [...banners];
-    const targetIndex = index + direction;
-    if (targetIndex < 0 || targetIndex >= banners.length) return;
-
-    const [moved] = nextBanners.splice(index, 1);
-    nextBanners.splice(targetIndex, 0, moved);
-
-    try {
-      const response = await fetch("/api/admin/banners/reorder", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          items: nextBanners.map((b, i) => ({
-            id: b._id || b.id,
-            order: i + 1,
-          })),
-        }),
-      });
-      const payload = await readJsonResponse(response);
-      if (!response.ok || !payload.success)
-        throw new Error(payload.message || "Reorder failed");
-      notify("Banner order saved");
-      refresh();
-    } catch (err) {
-      notify(err.message, "error");
-    }
-  }
-
-  return (
-    <PageShell>
-      <div className="mb-5 flex justify-end">
-        <Button
-          onClick={() => {
-            setEditing(null);
-            setOpen(true);
-          }}
-        >
-          <Plus size={17} /> Add Banner
+  return <form onSubmit={save} className="space-y-5">
+    <Link href="/admin/banners" className="text-sm text-[var(--admin-primary)]">Back to Banners</Link>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <h1 className="text-2xl font-semibold">{banner ? "Edit Banner" : "Add Banner"}</h1>
+      <div className="flex gap-2">
+        <Button variant="outline" asChild><Link href="/admin/banners">Cancel</Link></Button>
+        <Button type="submit" disabled={busy || !form.linkedContentId || (!image && !banner?.imageUrl)}>
+          {busy ? "Saving…" : "Save Banner"}
         </Button>
       </div>
+    </div>
+    {error && <p role="alert" className="tvk-validation text-sm">{error}</p>}
+    <fieldset disabled={busy} className="grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+      <Card><CardContent className="p-5">
+        <ImageUploadField label="Banner artwork" hintKey="banner" aspectRatio="16/9"
+          file={image} currentUrl={banner?.imageUrl} onFileChange={setImage} disabled={busy} />
+      </CardContent></Card>
+      <Card><CardContent className="space-y-4 p-5">
+        <h2 className="font-semibold">Carousel settings</h2>
+        <label className="block space-y-1 text-sm">Content type
+          <Select value={form.linkedContentType} onChange={(event) => {
+            change({ linkedContentType: event.target.value, linkedContentId: "", title: "", subtitle: "" });
+            setQuery(""); setMatches(null); setLookupError("");
+          }}>
+            <option value="movie">Movie</option><option value="series">Series</option>
+            {banner?.linkedContentType === "short" && <option value="short">Short</option>}
+          </Select>
+        </label>
+        <label className="block space-y-1 text-sm">Find a title
+          <Input type="search" disabled={form.linkedContentType === "short"} value={query} placeholder={form.linkedContentType === "series" ? "Search series" : "Search movies"}
+            onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }}
+            onChange={(event) => { setQuery(event.target.value); setMatches(null); setLookupError(""); }} />
+        </label>
+        {lookupError && <p role="alert" className="tvk-validation text-sm">{lookupError}</p>}
+        {query.trim() && <div className="max-h-56 overflow-y-auto">
+          {!lookupError && !matches && <p role="status" className="text-sm text-[var(--admin-muted)]">Searching…</p>}
+          {matches?.length === 0 && <p role="status" className="text-sm text-[var(--admin-muted)]">No matching titles.</p>}
+          {matches?.map((item) => <button key={item._id} type="button" className="flex w-full items-center gap-3 rounded-lg p-2 text-left hover:bg-[var(--admin-soft)]"
+            onClick={() => { change({ linkedContentId: item._id, title: item.title, subtitle: "" }); setQuery(""); }}>
+            <RecommendationThumbnail posterUrl={item.posterUrl} /><span>{item.title}</span>
+          </button>)}
+        </div>}
+        {form.linkedContentId && <p className="text-sm text-[var(--admin-primary)]">Linked title · {form.title}</p>}
+        <label className="block space-y-1 text-sm">Caption (optional)
+          <Textarea value={form.subtitle} onChange={(event) => change({ subtitle: event.target.value })} />
+        </label>
+        <label className="block space-y-1 text-sm">Display priority
+          <Input type="number" min="0" step="1" required value={form.order} onChange={(event) => change({ order: event.target.value })} />
+          <span className="block text-xs text-[var(--admin-muted)]">Higher numbers appear first.</span>
+        </label>
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <input type="checkbox" checked={form.isActive} onChange={(event) => change({ isActive: event.target.checked })} />
+          Active on carousel
+        </label>
+      </CardContent></Card>
+    </fieldset>
+  </form>;
+}
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl w-[min(760px,calc(100vw-32px))]">
-          <form onSubmit={handleSubmit} className="flex flex-col h-full max-h-[92vh]">
-            <DialogHeader>
-              <DialogTitle className="font-display text-xl font-bold text-[var(--admin-foreground)]">
-                {editing ? "Edit Homepage Hero Banner" : "Add New Hero Banner"}
-              </DialogTitle>
-              <DialogDescription className="text-sm text-[var(--admin-muted)] mt-1">
-                Link a featured title, upload a widescreen banner creative, and set carousel position.
-              </DialogDescription>
-            </DialogHeader>
+function BannersView({ admin, data, loading, setPage, refresh, notify }) {
+  const [busy, setBusy] = useState(false);
+  const banners = data?.banners || [];
+  const canEdit = canUploadVideo(admin);
 
-            <DialogBody className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)] block">
-                  Linked Content / Series <span className="text-red-500">*</span>
-                </label>
-                {loadingSeries ? (
-                  <div className="flex items-center gap-2 py-2">
-                    <Loader2
-                      className="animate-spin text-[var(--admin-primary)]"
-                      size={20}
-                    />
-                    <span className="text-xs text-[var(--admin-muted)]">
-                      Loading series catalogue...
-                    </span>
-                  </div>
-                ) : (
-                  <Select
-                    value={form.linkedContentId}
-                    onChange={(e) =>
-                      setForm({ ...form, linkedContentId: e.target.value })
-                    }
-                    required
-                    className="bg-[var(--admin-surface)] text-[var(--admin-foreground)] h-11 text-sm"
-                  >
-                    <option value="">-- Choose Series / Title --</option>
-                    {seriesList.map((series) => (
-                      <option
-                        key={series._id || series.id}
-                        value={series._id || series.id}
-                      >
-                        {series.title} {series.isFeatured ? "★ (Featured)" : ""}
-                      </option>
-                    ))}
-                  </Select>
-                )}
+  async function saveAction(path, options, message) {
+    setBusy(true);
+    try {
+      await apiFetch(path, options);
+      notify(message);
+      refresh();
+    } catch (error) {
+      notify(error.message, "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function move(banner, direction) {
+    return saveAction("/api/admin/banners/reorder",
+      { method: "PUT", body: JSON.stringify({ id: banner._id, direction }) }, "Banner order saved");
+  }
+
+  async function remove(banner) {
+    if (await showConfirm(`Delete “${banner.title}” from banners?`)) {
+      await saveAction(`/api/admin/banners/${banner._id}`, { method: "DELETE" }, "Banner deleted");
+    }
+  }
+
+  return <PageShell>
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <div><h1 className="text-2xl font-semibold">Banners</h1>
+        <p className="mt-1 text-sm text-[var(--admin-muted)]">Manage the Home carousel and its display order.</p></div>
+      {canEdit && <Button asChild><Link href="/admin/banners/new"><Plus size={16} /> Add Banner</Link></Button>}
+    </div>
+    {loading ? <PinkLoader /> : !banners.length ? <EmptyState title="No banners on this page" /> : (
+      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {banners.map((banner, index) => {
+          const position = (data.pagination.page - 1) * data.pagination.limit + index + 1;
+          return <li key={banner._id} className="overflow-hidden rounded-xl border border-[var(--admin-border)] bg-[var(--admin-surface)]">
+            <div className="relative aspect-video bg-[var(--admin-soft)]">
+              {banner.imageUrl && <img src={banner.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" />}
+              <span className="absolute left-3 top-3 rounded-md bg-black/75 px-2 py-1 text-xs font-semibold text-white">{position}</span>
+            </div>
+            <div className="space-y-3 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0"><h2 className="truncate font-semibold">{banner.title}</h2>
+                  <p className="text-sm capitalize text-[var(--admin-muted)]">{banner.linkedContentType}</p></div>
+                <span className={`rounded-md border border-[var(--admin-border)] px-2 py-1 text-xs ${banner.isActive ? "text-[var(--admin-primary)]" : "text-[var(--admin-muted)]"}`}>
+                  {banner.isActive ? "Active" : "Inactive"}
+                </span>
               </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)] block">
-                  Display Order Priority
-                </label>
-                <Input
-                  type="number"
-                  value={form.order}
-                  onChange={(e) => setForm({ ...form, order: e.target.value })}
-                  placeholder="0"
-                  className="h-10 text-sm"
-                />
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2 pt-1">
-                <ImageUploadField
-                  label="Hero Banner Image (16:9)"
-                  currentUrl={editing?.imageUrl}
-                  file={imageFile}
-                  onFileChange={setImageFile}
-                  aspectRatio="16/9"
-                  disabled={submitting}
-                />
-                <div className="flex flex-col justify-center">
-                  <div className="p-4 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-soft)]/40">
-                    <label className="flex items-center gap-2.5 text-sm font-semibold cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={form.isActive}
-                        onChange={(e) =>
-                          setForm({ ...form, isActive: e.target.checked })
-                        }
-                        className="rounded border-[var(--admin-border)] text-[var(--admin-primary)] focus:ring-[var(--admin-primary)] h-4 w-4"
-                      />
-                      <span>Active on Carousel</span>
-                    </label>
-                    <p className="text-xs text-[var(--admin-muted)] mt-1.5 pl-6">
-                      Toggle whether this hero banner is currently displayed to active subscribers and guests.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </DialogBody>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={submitting || !form.linkedContentId}
-              >
-                {submitting ? "Saving..." : "Save Banner"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Banners</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <PinkLoader className="min-h-96" />
-          ) : banners.length ? (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[700px] text-sm">
-                  <thead>
-                    <tr className="border-b border-[var(--admin-border)] text-left text-xs uppercase tracking-[0.12em] text-[var(--admin-muted)]">
-                      <th className="px-3 py-3">Banner image & title</th>
-                      <th className="px-3 py-3">Order</th>
-                      <th className="px-3 py-3">Reorder</th>
-                      <th className="px-3 py-3">Status</th>
-                      <th className="px-3 py-3">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {banners.map((banner, index) => (
-                      <tr
-                        key={banner._id || banner.id}
-                        className="border-b border-[var(--admin-border)] hover:bg-[var(--admin-soft)]"
-                      >
-                        <td className="px-3 py-4 font-semibold flex items-center gap-3">
-                          <div className="grid h-12 w-24 shrink-0 place-items-center overflow-hidden rounded-[8px] bg-[var(--admin-soft)]">
-                            {banner.imageUrl ? (
-                              <img
-                                src={banner.imageUrl}
-                                alt=""
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <Image
-                                className="text-[var(--admin-primary)]"
-                                size={20}
-                              />
-                            )}
-                          </div>
-                          <div>
-                            <p>{banner.title}</p>
-                            <p className="text-xs text-[var(--admin-muted)]">
-                              {banner.subtitle}
-                            </p>
-                          </div>
-                        </td>
-                        <td className="px-3 py-4 font-bold">
-                          {banner.order || 0}
-                        </td>
-                        <td className="px-3 py-4 flex gap-1">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleMove(index, -1)}
-                            disabled={index === 0}
-                          >
-                            ▲
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleMove(index, 1)}
-                            disabled={index === banners.length - 1}
-                          >
-                            ▼
-                          </Button>
-                        </td>
-                        <td className="px-3 py-4">
-                          <StatusBadge
-                            status={banner.isActive ? "Active" : "Suspended"}
-                          />
-                        </td>
-                        <td className="px-3 py-4">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal size={18} />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                              <DropdownMenuItem
-                                onSelect={() => {
-                                  setEditing(banner);
-                                  setOpen(true);
-                                }}
-                              >
-                                <Pencil size={16} /> Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onSelect={() =>
-                                  handleDelete(banner._id || banner.id)
-                                }
-                              >
-                                <Trash2 size={16} className="text-red-500" />{" "}
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <Pagination pagination={data?.pagination} setPage={setPage} />
-            </>
-          ) : (
-            <EmptyState
-              icon={Image}
-              title="No banners found"
-              description="Create a banner to customize home feed."
-            />
-          )}
-        </CardContent>
-      </Card>
-    </PageShell>
-  );
+              {canEdit && <div className="flex items-center gap-2 border-t border-[var(--admin-border)] pt-3">
+                <Button size="sm" variant="outline" asChild><Link href={`/admin/banners/${banner._id}/edit`}><Pencil size={14} /> Edit</Link></Button>
+                <Button size="icon" variant="outline" aria-label={`Move ${banner.title} earlier`} disabled={busy || position === 1} onClick={() => move(banner, -1)}><ChevronUp size={16} /></Button>
+                <Button size="icon" variant="outline" aria-label={`Move ${banner.title} later`} disabled={busy || position >= data.pagination.total} onClick={() => move(banner, 1)}><ChevronDown size={16} /></Button>
+                {admin?.role === "super_admin" && <Button size="icon" variant="outline" className="ml-auto" aria-label={`Delete ${banner.title}`} disabled={busy} onClick={() => remove(banner)}><Trash2 size={15} /></Button>}
+              </div>}
+            </div>
+          </li>;
+        })}
+      </ul>
+    )}
+    {!loading && data?.pagination?.totalPages > 1 && <Pagination pagination={data.pagination} setPage={setPage} />}
+  </PageShell>;
 }
 
 function ComingSoonView({
@@ -20344,7 +18911,126 @@ function ArtistSearchDropdown({
   );
 }
 
+function ArtistTypesPanel({ types, loading, error, onRetry, setTypes, notify }) {
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [name, setName] = useState("");
+  const [isActive, setIsActive] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  function reset() {
+    setEditing(null);
+    setName("");
+    setIsActive(true);
+    setSaveError("");
+  }
+
+  async function save(event) {
+    event.preventDefault();
+    if (saving || !name.trim()) return;
+    setSaving(true);
+    setSaveError("");
+    try {
+      const response = await fetch(editing ? `/api/admin/artist-types/${encodeURIComponent(editing.key)}` : "/api/admin/artist-types", {
+        method: editing ? "PUT" : "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name, isActive }),
+      });
+      const data = await readJsonResponse(response);
+      if (!response.ok) throw new Error(data.message || "Artist type could not be saved.");
+      setTypes((current) => [...current.filter((type) => type.key !== data.type.key), data.type]
+        .sort((first, second) => first.name.localeCompare(second.name)));
+      notify(editing ? "Artist type updated" : "Artist type added");
+      reset();
+    } catch (error) {
+      setSaveError(error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card className="mb-5">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+        <CardTitle>Artist Types</CardTitle>
+        <Button type="button" variant="outline" aria-expanded={open} onClick={() => setOpen(!open)}>
+          {open ? "Close Artist Types" : "Manage Artist Types"}
+        </Button>
+      </CardHeader>
+      {open && (
+        <CardContent className="space-y-4">
+          {loading ? <p role="status">Loading artist types…</p> : error ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <p role="alert" className="tvk-validation text-sm">{error}</p><Button type="button" variant="outline" onClick={onRetry}>Retry</Button>
+            </div>
+          ) : (
+            <>
+              <form onSubmit={save} className="space-y-2">
+                <fieldset disabled={saving} className="flex flex-wrap items-end gap-3">
+                  <label className="min-w-56 flex-1 text-sm font-semibold">
+                    {editing ? "Edit type name" : "New type name"}
+                    <Input className="mt-1" value={name} onChange={(event) => setName(event.target.value)} maxLength={80}
+                      placeholder="e.g. Cinematographer" required />
+                  </label>
+                  <label className="text-sm font-semibold">
+                    Status
+                    <Select className="mt-1" value={isActive ? "active" : "inactive"} onChange={(event) => setIsActive(event.target.value === "active")}>
+                      <option value="active">Active</option><option value="inactive">Inactive</option>
+                    </Select>
+                  </label>
+                  {editing && <Button type="button" variant="outline" onClick={reset}>Cancel</Button>}
+                  <Button type="submit" disabled={saving || !name.trim()}>
+                    {saving ? "Saving…" : editing ? "Save Type" : "Add Type"}
+                  </Button>
+                </fieldset>
+                {saveError && <p role="alert" className="tvk-validation text-sm">{saveError}</p>}
+              </form>
+              <ul className="divide-y divide-[var(--admin-border)]">
+                {types.map((type) => (
+                  <li key={type.key} className="flex items-center gap-3 py-2">
+                    <span className="flex-1 text-sm font-semibold">{type.name}</span>
+                    <span className="text-xs text-[var(--admin-muted)]">{type.isActive ? "Active" : "Inactive"}</span>
+                    <Button type="button" variant="outline" size="sm" disabled={saving} aria-label={`Edit ${type.name}`} onClick={() => {
+                      setEditing(type);
+                      setName(type.name);
+                      setIsActive(type.isActive);
+                      setSaveError("");
+                    }}>Edit</Button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
 function ArtistsView({ data, loading, refresh, notify }) {
+  const [types, setTypes] = useState([]);
+  const [typesLoading, setTypesLoading] = useState(true);
+  const [typesError, setTypesError] = useState("");
+  const [typesRequest, setTypesRequest] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    setTypesLoading(true);
+    setTypesError("");
+    fetch("/api/admin/artist-types", { cache: "no-store" }).then(async (response) => {
+      const data = await readJsonResponse(response);
+      if (!response.ok) throw new Error(data.message || "Artist types could not be loaded.");
+      if (active) setTypes(data.types);
+    }).catch((error) => {
+      if (active) setTypesError(error.message);
+    }).finally(() => {
+      if (active) setTypesLoading(false);
+    });
+    return () => { active = false; };
+  }, [typesRequest]);
+
+  const typeByKey = new Map(types.map((type) => [type.key, type]));
   const artistsList = data?.artists || [];
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -20353,7 +19039,7 @@ function ArtistsView({ data, loading, refresh, notify }) {
   // Form state
   const [form, setForm] = useState({
     name: "",
-    type: "actor",
+    type: "",
     bio: "",
     photo: "",
   });
@@ -20371,7 +19057,7 @@ function ArtistsView({ data, loading, refresh, notify }) {
     if (editing) {
       setForm({
         name: editing.name || "",
-        type: editing.type || "actor",
+        type: editing.type || "",
         bio: editing.bio || "",
         photo: editing.photo || "",
       });
@@ -20382,7 +19068,7 @@ function ArtistsView({ data, loading, refresh, notify }) {
     } else {
       setForm({
         name: "",
-        type: "actor",
+        type: "",
         bio: "",
         photo: "",
       });
@@ -20424,7 +19110,7 @@ function ArtistsView({ data, loading, refresh, notify }) {
   const handleCancel = () => {
     setEditing(null);
     setShowForm(false);
-    setForm({ name: "", type: "actor", bio: "", photo: "" });
+    setForm({ name: "", type: "", bio: "", photo: "" });
     setPhotoPreview("");
     setPhotoFile(null);
     setUploadProgress(0);
@@ -20506,10 +19192,10 @@ function ArtistsView({ data, loading, refresh, notify }) {
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[var(--admin-foreground)]">
-            Artist Management
+            Cast &amp; Crew
           </h1>
           <p className="text-sm text-[var(--admin-muted)]">
-            Manage actors, directors, and writers
+            Manage people and their directory types
           </p>
         </div>
         {!showForm && (
@@ -20525,6 +19211,15 @@ function ArtistsView({ data, loading, refresh, notify }) {
           </Button>
         )}
       </div>
+
+      <ArtistTypesPanel
+        types={types}
+        loading={typesLoading}
+        error={typesError}
+        onRetry={() => setTypesRequest((value) => value + 1)}
+        setTypes={setTypes}
+        notify={notify}
+      />
 
       {/* Inline Form Section */}
       {showForm && (
@@ -20562,9 +19257,13 @@ function ArtistsView({ data, loading, refresh, notify }) {
                     disabled={submitting}
                     required
                   >
-                    <option value="actor">Actor</option>
-                    <option value="director">Director</option>
-                    <option value="writer">Writer</option>
+                    <option value="">{typesLoading ? "Loading artist types…" : "Select artist type"}</option>
+                    {types.filter((type) => type.isActive || type.key === editing?.type).map((type) => (
+                      <option key={type.key} value={type.key}>{type.name}{type.isActive ? "" : " (inactive)"}</option>
+                    ))}
+                    {editing?.type && !typeByKey.has(editing.type) && (
+                      <option value={editing.type}>{editing.type}</option>
+                    )}
                   </Select>
                 </div>
               </div>
@@ -20710,9 +19409,9 @@ function ArtistsView({ data, loading, refresh, notify }) {
               className="h-8 text-xs w-32"
             >
               <option value="all">All Types</option>
-              <option value="actor">Actors</option>
-              <option value="director">Directors</option>
-              <option value="writer">Writers</option>
+              {types.map((type) => (
+                <option key={type.key} value={type.key}>{type.name}{type.isActive ? "" : " (inactive)"}</option>
+              ))}
             </Select>
           </div>
         </CardHeader>
@@ -20764,16 +19463,10 @@ function ArtistsView({ data, loading, refresh, notify }) {
                         </td>
                         <td className="px-4 py-3.5">
                           <span
-                            className={cn(
-                              "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold capitalize",
-                              artist.type === "actor"
-                                ? "bg-cyan-500/10 text-cyan-500"
-                                : artist.type === "director"
-                                  ? "bg-rose-500/10 text-rose-500"
-                                  : "bg-amber-500/10 text-amber-500",
-                            )}
+                            className="inline-flex items-center rounded-full bg-[var(--admin-soft)] px-2 py-1 text-xs font-semibold"
                           >
-                            {artist.type}
+                            {typeByKey.get(artist.type)?.name || artist.type}
+                            {typeByKey.get(artist.type)?.isActive === false ? " (inactive)" : ""}
                           </span>
                         </td>
                         <td className="px-4 py-3.5 text-xs text-[var(--admin-muted)] max-w-md truncate">

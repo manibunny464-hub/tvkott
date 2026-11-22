@@ -1,3 +1,4 @@
+import Language from '@/models/Language';
 import dbConnect from '@/lib/db';
 import SeasonTrailer from '@/models/SeasonTrailer';
 import Content from '@/models/Content';
@@ -23,33 +24,29 @@ export async function GET(request) {
 
     await dbConnect();
 
-    let seriesIdsFilter = null;
-    if (preferredLangs.length > 0) {
-      const matchingSeries = await Content.find({
-        type: 'series',
-        language: { $in: preferredLangs },
-        isActive: true,
-        isDeleted: { $ne: true }
-      }).select('_id').lean();
-      seriesIdsFilter = matchingSeries.map(s => s._id);
-    }
+    const seriesIds = await Content.distinct('_id', {
+      type: 'series', isActive: true, isDeleted: { $ne: true },
+      ...(preferredLangs.length ? { language: { $in: preferredLangs } } : {}),
+    });
 
     const trailerQuery = {
+      seriesId: { $in: seriesIds },
       isActive: true,
       $or: [
-        { videoUrl: { $exists: true, $ne: "", $ne: null } },
+        { videoUrl: { $type: "string", $ne: "" } },
         { "languages.0": { $exists: true } }
       ]
     };
-    if (seriesIdsFilter !== null) {
-      trailerQuery.seriesId = { $in: seriesIdsFilter };
+    if (preferredLangs.length) {
+      const languages = await Language.find({ englishName: { $in: preferredLangs } }).select('code').lean();
+      trailerQuery.language = { $in: [null, ...languages.map(({ code }) => code)] };
     }
 
     const [trailers, total] = await Promise.all([
       SeasonTrailer.find(trailerQuery)
         .populate({ path: 'seriesId', select: 'title poster banner thumbnail genres rating releaseYear' })
         .populate({ path: 'seasonId', select: 'seasonNumber title poster' })
-        .sort({ createdAt: -1 })
+        .sort({ createdAt: -1, _id: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
@@ -71,6 +68,7 @@ export async function GET(request) {
       return {
         _id: t._id,
         videoUrl: resolveUrl(videoUrl),
+        ...(t.language ? { language: t.language } : {}),
         series: t.seriesId ? {
           _id: t.seriesId._id,
           title: t.seriesId.title,

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { CreateMultipartUploadCommand } from '@aws-sdk/client-s3';
 import { requireAdmin } from '@/lib/admin/auth';
 import { getMasterSettings } from '@/lib/admin/data';
@@ -17,6 +18,13 @@ export async function POST(request) {
       );
     }
 
+    if (folder === 'trailers') {
+      const { error } = await requireAdmin(request, 'trailers');
+      if (error) return error;
+      if (!['video/mp4', 'video/webm'].includes(contentType)) {
+        return Response.json({ success: false, message: 'Choose an MP4 or WebM trailer.' }, { status: 400 });
+      }
+    }
     const settings = await getMasterSettings();
     const bucketName = settings?.storage?.bucket || process.env.S3_BUCKET_NAME;
 
@@ -28,7 +36,7 @@ export async function POST(request) {
     }
 
     const cleanFilename = filename.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const key = `${folder}/${Date.now()}-${cleanFilename}`;
+    const key = `${folder}/${folder === "trailers" ? randomUUID() : Date.now()}-${cleanFilename}`;
 
     const command = new CreateMultipartUploadCommand({
       Bucket: bucketName,

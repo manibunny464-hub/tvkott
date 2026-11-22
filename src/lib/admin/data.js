@@ -7,7 +7,6 @@ import Subscription from '@/models/Subscription';
 import SubscriptionPlan from '@/models/SubscriptionPlan';
 import Transaction from '@/models/Transaction';
 import User from '@/models/User';
-import Season from '@/models/Season';
 import Episode from '@/models/Episode';
 import Device from '@/models/Device';
 import { defaultAdminSettings } from '@/lib/admin/defaults';
@@ -74,17 +73,6 @@ function getLastNDays(days) {
     date.setDate(today.getDate() - (days - 1 - index));
     return date;
   });
-}
-
-function getMonthKey(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function getMonthLabel(key) {
-  const [year, month] = key.split('-').map(Number);
-  return new Intl.DateTimeFormat('en', { month: 'short' }).format(
-    new Date(year, month - 1, 1)
-  );
 }
 
 async function getViewsByContentIds(contentIds) {
@@ -205,253 +193,71 @@ export function sanitizeSettingsPayload(payload) {
   };
 }
 
-let cachedDashboardData = null;
-let cachedDashboardExpiry = 0;
-const DASHBOARD_CACHE_TTL = 60 * 1000; // 60 seconds
-
-export function invalidateDashboardCache() {
-  cachedDashboardData = null;
-  cachedDashboardExpiry = 0;
-}
-
 export async function getDashboardData() {
-  const currentTime = Date.now();
-  if (cachedDashboardData && currentTime < cachedDashboardExpiry) {
-    return cachedDashboardData;
-  }
-
   await dbConnect();
 
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const last30Start = getLastNDays(30)[0];
-
-  const [
-    totalSeries,
-    totalSeasons,
-    totalEpisodes,
-    totalUsers,
-    activeSubscriptions,
-    premiumUsers,
-    revenueMonthRows,
-    recentContent,
-    viewsRows,
-    episodeRows,
-    episodesBySeriesRows,
-    revenueRows,
-    recentSubscribersDocs,
-  ] = await Promise.all([
-    Content.countDocuments({ type: 'series', isDeleted: { $ne: true } }),
-    Season.countDocuments({ isDeleted: { $ne: true } }),
-    Episode.countDocuments({ isDeleted: { $ne: true } }),
-    User.countDocuments({}),
-    Subscription.countDocuments({
-      status: 'active',
-      $or: [{ endDate: { $gte: now } }, { endDate: { $exists: false } }],
-    }),
-    User.countDocuments({ isPremium: true }),
-    Transaction.aggregate([
-      {
-        $match: {
-          status: 'success',
-          $or: [{ paidAt: { $gte: monthStart } }, { createdAt: { $gte: monthStart } }],
-        },
-      },
-      { $group: { _id: null, total: { $sum: '$amount' } } },
-    ]),
-    Content.find({ type: 'series', isDeleted: { $ne: true } }).sort({ createdAt: -1 }).limit(7).lean(),
-    User.aggregate([
-      { $unwind: '$watchHistory' },
-      { $match: { 'watchHistory.watchedAt': { $gte: last30Start } } },
-      {
-        $group: {
-          _id: {
-            $dateToString: {
-              format: '%Y-%m-%d',
-              date: '$watchHistory.watchedAt',
-            },
-          },
-          views: { $sum: 1 },
-        },
-      },
-    ]),
-    Episode.aggregate([
-      { $match: { isDeleted: { $ne: true }, createdAt: { $gte: last30Start } } },
-      {
-        $group: {
-          _id: {
-            $dateToString: {
-              format: '%Y-%m-%d',
-              date: '$createdAt',
-            },
-          },
-          episodes: { $sum: 1 },
-        },
-      },
-    ]),
-    Episode.aggregate([
-      { $match: { isDeleted: { $ne: true } } },
-      {
-        $group: {
-          _id: { $ifNull: ['$seriesId', '$contentId'] },
-          episodes: { $sum: 1 },
-          seasons: { $addToSet: { $ifNull: ['$seasonId', '$season'] } },
-        },
-      },
-      { $sort: { episodes: -1 } },
-      { $limit: 8 },
-    ]),
-    Transaction.aggregate([
-      { $match: { status: 'success' } },
-      {
-        $group: {
-          _id: {
-            $dateToString: {
-              format: '%Y-%m',
-              date: { $ifNull: ['$paidAt', '$createdAt'] },
-            },
-          },
-          revenue: { $sum: '$amount' },
-        },
-      },
-      { $sort: { _id: 1 } },
-      { $limit: 12 },
-    ]),
-    Subscription.find({ status: 'active' })
-      .sort({ createdAt: -1 })
-      .limit(6)
-      .populate('userId', 'name phone email profileImage')
-      .populate('planId', 'name price duration label')
-      .lean(),
-  ]);
-
-  const recentIds = recentContent.map((item) => item._id.toString());
-  const recentViews = await getViewsByContentIds(recentIds);
-  const seriesChartIds = episodesBySeriesRows
-    .map((row) => row._id)
-    .filter((id) => mongoose.Types.ObjectId.isValid(id));
-  const chartSeries = await Content.find({ _id: { $in: seriesChartIds } }, { title: 1 }).lean();
-  const chartSeriesMap = new Map(chartSeries.map((item) => [item._id.toString(), item.title]));
-  const viewsMap = new Map(viewsRows.map((row) => [row._id, row.views]));
-  const episodesMap = new Map(episodeRows.map((row) => [row._id, row.episodes]));
-
-  const viewsOverTime = getLastNDays(30).map((date) => {
-    const key = date.toISOString().slice(0, 10);
-    return {
-      date: key.slice(5),
-      views: viewsMap.get(key) || 0,
-      episodes: episodesMap.get(key) || 0,
-    };
+  const catalog = { type: { $in: ['movie', 'series'] }, isDeleted: { $ne: true } };
+  const timeZone = 'Asia/Kolkata';
+  const dayFormat = new Intl.DateTimeFormat('en-CA', {
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
   });
+  const now = new Date();
+  const dayKeys = Array.from({ length: 30 }, (_, index) =>
+    dayFormat.format(new Date(now.getTime() - (29 - index) * 86_400_000))
+  );
+  const start = new Date(`${dayKeys[0]}T00:00:00+05:30`);
 
-  const revenueByMonth = revenueRows.map((row) => ({
-    month: getMonthLabel(row._id),
-    revenue: row.revenue,
-  }));
+  const [catalogCounts, totalEpisodes, totalUsers, activeSubscriptions, recentTitles, watchCounts] =
+    await Promise.all([
+      Content.aggregate([
+        { $match: catalog },
+        { $group: {
+          _id: '$type',
+          total: { $sum: 1 },
+          drafts: { $sum: { $cond: [{ $eq: ['$isActive', false] }, 1, 0] } },
+        } },
+      ]),
+      Episode.countDocuments({ isDeleted: { $ne: true } }),
+      User.countDocuments(),
+      Subscription.countDocuments({
+        status: 'active',
+        $or: [{ endDate: { $gte: now } }, { endDate: { $exists: false } }],
+      }),
+      Content.find(catalog).select('title type posterUrl thumbnailUrl updatedAt isActive isComingSoon')
+        .sort({ updatedAt: -1, _id: -1 }).limit(8).lean(),
+      User.aggregate([
+        { $match: { 'watchHistory.watchedAt': { $gte: start, $lte: now } } },
+        { $unwind: '$watchHistory' },
+        { $match: { 'watchHistory.watchedAt': { $gte: start, $lte: now } } },
+        { $group: {
+          _id: { $dateToString: { date: '$watchHistory.watchedAt', format: '%Y-%m-%d', timezone: timeZone } },
+          views: { $sum: 1 },
+        } },
+      ]),
+    ]);
 
-  const freeUsers = Math.max(totalUsers - premiumUsers, 0);
-
-  const resultPayload = {
+  const countsByType = new Map(catalogCounts.map((entry) => [entry._id, entry]));
+  const viewsByDay = new Map(watchCounts.map((entry) => [entry._id, entry.views]));
+  return {
     stats: {
-      totalSeries,
-      totalSeasons,
+      totalMovies: countsByType.get('movie')?.total ?? 0,
+      totalSeries: countsByType.get('series')?.total ?? 0,
+      totalDrafts: catalogCounts.reduce((sum, entry) => sum + entry.drafts, 0),
       totalEpisodes,
       totalUsers,
-      activeSubscriptions: Math.max(activeSubscriptions, premiumUsers),
-      revenueThisMonth: revenueMonthRows[0]?.total || 0,
+      activeSubscriptions,
     },
-    recentSubscribers: (recentSubscribersDocs || []).map((sub) => ({
-      id: sub._id.toString(),
-      name: sub.userId?.name || sub.userId?.phone || 'Subscriber',
-      phone: sub.userId?.phone || '',
-      email: sub.userId?.email || '',
-      planName: sub.planId?.name || 'Premium Plan',
-      planPrice: sub.planId?.price || 0,
-      startDate: sub.startDate,
-      endDate: sub.endDate,
-      status: sub.status,
-      autoRenew: sub.autoRenew,
+    recentTitles: recentTitles.map((title) => ({
+      id: String(title._id),
+      title: title.title,
+      type: title.type,
+      artworkUrl: title.posterUrl || title.thumbnailUrl || null,
+      status: title.isActive === false ? 'draft' : title.isComingSoon ? 'coming_soon' : 'published',
+      updatedAt: title.updatedAt ?? null,
     })),
-    recentUploads: recentContent.map((content) =>
-      normalizeVideo(content, recentViews.get(content._id.toString()) || 0)
-    ),
-    viewsOverTime,
-    revenueByMonth,
-    planDistribution: [
-      { name: 'Free', value: freeUsers },
-      { name: 'Premium', value: premiumUsers },
-      { name: 'Active Subs', value: activeSubscriptions },
-    ].filter((item) => item.value > 0),
-    catalogDistribution: [
-      { name: 'Series', value: totalSeries },
-      { name: 'Seasons', value: totalSeasons },
-      { name: 'Episodes', value: totalEpisodes },
-    ].filter((item) => item.value > 0),
-    episodesBySeries: episodesBySeriesRows.map((row) => ({
-      title: chartSeriesMap.get(String(row._id)) || 'Unknown series',
-      episodes: row.episodes,
-      seasons: row.seasons?.filter(Boolean).length || 0,
-    })),
-    topSeries: await (async () => {
-      const rows = await User.aggregate([
-        { $unwind: '$watchHistory' },
-        { $group: { _id: '$watchHistory.contentId', views: { $sum: 1 } } },
-        { $sort: { views: -1 } },
-        { $limit: 5 },
-      ]);
-      const ids = rows.map((r) => r._id).filter((id) => mongoose.Types.ObjectId.isValid(id));
-      const docs = await Content.find({ _id: { $in: ids } }, { title: 1, type: 1 }).lean();
-      const docsMap = new Map(docs.map((s) => [s._id.toString(), s]));
-      return rows.map((r) => {
-        const doc = docsMap.get(String(r._id));
-        return {
-          title: doc?.title || 'Unknown content',
-          type: doc?.type || 'series',
-          views: r.views,
-        };
-      }).filter((item) => item.title !== 'Unknown content');
-    })(),
-    topEpisodes: await (async () => {
-      const rows = await User.aggregate([
-        { $unwind: '$watchHistory' },
-        { $match: { 'watchHistory.episodeId': { $ne: null } } },
-        { $group: { _id: '$watchHistory.episodeId', views: { $sum: 1 } } },
-        { $sort: { views: -1 } },
-        { $limit: 5 },
-      ]);
-      const ids = rows.map((r) => r._id).filter((id) => mongoose.Types.ObjectId.isValid(id));
-      const docs = await Episode.find({ _id: { $in: ids } }, { title: 1, episodeNumber: 1, season: 1, seasonId: 1, seriesId: 1 }).lean();
-      const parentIds = [...new Set(docs.map((ep) => ep.seriesId).filter(Boolean))];
-      const parents = await Content.find({ _id: { $in: parentIds } }, { title: 1 }).lean();
-      const parentsMap = new Map(parents.map((p) => [p._id.toString(), p.title]));
-      const seasonIds = [...new Set(docs.map((ep) => ep.seasonId).filter(Boolean))];
-      const seasons = await Season.find({ _id: { $in: seasonIds } }, { seasonNumber: 1 }).lean();
-      const seasonsMap = new Map(seasons.map((s) => [s._id.toString(), s.seasonNumber]));
-      const docsMap = new Map(docs.map((e) => [e._id.toString(), e]));
-      return rows.map((r) => {
-        const doc = docsMap.get(String(r._id));
-        const seriesTitle = doc?.seriesId ? parentsMap.get(String(doc.seriesId)) : '';
-        const seasonNumber = doc
-          ? (doc.season !== undefined && doc.season !== null && doc.season !== ''
-              ? doc.season
-              : (doc.seasonId ? seasonsMap.get(String(doc.seasonId)) : ''))
-          : '';
-        const hasSeason = seasonNumber !== undefined && seasonNumber !== null && seasonNumber !== '';
-        const seasonPart = hasSeason ? `S${seasonNumber} ` : '';
-        const displayTitle = doc
-          ? `${seriesTitle ? seriesTitle + ' · ' : ''}${seasonPart}E${doc.episodeNumber}: ${doc.title}`
-          : 'Unknown episode';
-        return {
-          title: displayTitle,
-          views: r.views,
-        };
-      }).filter((item) => item.title !== 'Unknown episode');
-    })(),
+    viewsOverTime: dayKeys.map((date) => ({ date, views: viewsByDay.get(date) ?? 0 })),
   };
 
-  cachedDashboardData = resultPayload;
-  cachedDashboardExpiry = Date.now() + DASHBOARD_CACHE_TTL;
-  return resultPayload;
 }
 
 export async function getVideosList({ page = 1, limit = 10, search = '', status = '', category = '' }) {

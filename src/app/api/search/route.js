@@ -25,6 +25,7 @@ export async function GET(request) {
 
     const contentMatch = {
       isActive: true,
+      isDeleted: { $ne: true },
       $or: [
         { isComingSoon: { $ne: true } },
         { expectedReleaseDate: { $lte: new Date() } },

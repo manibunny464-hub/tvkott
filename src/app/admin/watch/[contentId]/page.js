@@ -111,7 +111,7 @@ function EmptyPanel({ title, description }) {
         <h1 className="mt-4 text-3xl font-bold">{title}</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">{description}</p>
         <Link
-          href="/admin/episodes"
+          href="/admin/series"
           className="mt-6 inline-flex h-10 items-center rounded-[8px] bg-cyan-300 px-4 text-sm font-bold text-[#06111f]"
         >
           Back to episodes
@@ -174,7 +174,7 @@ export default async function WatchPage({ params }) {
           </div>
           <div className="flex flex-wrap gap-2">
             <Link
-              href={kind === 'episode' ? '/admin/episodes' : '/admin/videos'}
+              href={kind === 'episode' ? '/admin/series' : `/admin/movies/${contentId}/edit`}
               className="inline-flex h-10 items-center rounded-[8px] border border-white/15 px-4 text-sm font-bold text-slate-100 hover:bg-white/10"
             >
               Back to admin

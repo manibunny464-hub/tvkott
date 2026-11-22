@@ -1,3 +1,6 @@
+import { seasonTrailersByLanguage } from '@/lib/season-trailer-selection';
+import { publishedMovieLanguages } from '@/lib/admin/movie-media';
+import { recommendationCards } from '@/lib/more-like-this';
 import mongoose from 'mongoose';
 import dbConnect from '@/lib/db';
 import Content from '@/models/Content';
@@ -54,6 +57,7 @@ function cleanContent(content) {
     producer,        // eslint-disable-line no-unused-vars
     trailerPoster,   // eslint-disable-line no-unused-vars
     trailerUrl,      // eslint-disable-line no-unused-vars
+    movieIds,        // eslint-disable-line no-unused-vars
     ...rest
   } = content;
   return rest;
@@ -111,7 +115,7 @@ export async function GET(request, { params }) {
       _id: objectId,
       isActive: true,
       isDeleted: { $ne: true },
-    }).lean();
+    }).select('+primaryLanguage').lean();
 
     if (!content) {
       return Response.json(
@@ -166,10 +170,20 @@ export async function GET(request, { params }) {
     }
 
     if (content.type !== 'series') {
+      const playback = content.type === 'movie'
+        ? await publishedMovieLanguages(content, content.pricing === 'free' || isUserPremium)
+        : null;
+      const recommendations = content.type === 'movie'
+        ? await recommendationCards([content.movieIds], 'movie', resolveUrl)
+        : new Map();
       return Response.json({
         success: true,
         content: {
           ...cleanContent(content),
+          ...(playback ? { playback } : {}),
+          ...(content.type === 'movie' ? {
+            moreLikeThis: (content.movieIds ?? []).map((id) => recommendations.get(String(id))).filter(Boolean),
+          } : {}),
           cast,
           isAdded,
           addedtolist: isAdded,
@@ -182,7 +196,7 @@ export async function GET(request, { params }) {
           },
           seasons: [],
         },
-      });
+      }, { headers: { "Cache-Control": "private, no-store" } });
     }
 
     const [dbSeasons, episodes, trailers] = await Promise.all([
@@ -234,7 +248,8 @@ export async function GET(request, { params }) {
     }
 
     // Build trailer lookup by seasonId
-    const trailersBySeasonId = new Map(trailers.map((t) => [t.seasonId.toString(), t]));
+    const trailersBySeasonId = seasonTrailersByLanguage(trailers,
+      new URL(request.url).searchParams.get('language'), content.primaryLanguage);
 
     const episodesBySeasonId = new Map();
     const episodesBySeasonNumber = new Map();
@@ -252,6 +267,9 @@ export async function GET(request, { params }) {
       ]);
     }
 
+    const recommendations = await recommendationCards(
+      dbSeasons.map((season) => season.seriesIds), 'series', resolveUrl
+    );
     const activeSeasons = dbSeasons
       .sort((a, b) => Number(a.seasonNumber) - Number(b.seasonNumber))
       .map((season) => {
@@ -297,11 +315,13 @@ export async function GET(request, { params }) {
             ? {
                 videoUrl: resolveUrl(trailerUrl) || null,
                 duration: Math.round(seasonTrailer.duration || 0),
+                ...(seasonTrailer.language ? { language: seasonTrailer.language } : {}),
               }
             : null;
 
         return {
           ...season,
+          moreLikeThis: (season.seriesIds ?? []).map((id) => recommendations.get(String(id))).filter(Boolean),
           title: season.title || `Season ${season.seasonNumber}`,
           episodeCount: seasonEpisodes.length,
           status: seasonEpisodes.length > 0 ? 'available' : 'empty',

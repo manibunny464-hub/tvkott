@@ -8,7 +8,7 @@ const ArtistSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['actor', 'director', 'writer'],
+    trim: true,
     required: [true, 'Please provide an artist type'],
   },
   bio: {

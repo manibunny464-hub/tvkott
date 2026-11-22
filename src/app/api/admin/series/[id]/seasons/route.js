@@ -3,6 +3,7 @@ import { requireAdmin, writeAuditLog } from '@/lib/admin/auth';
 import { softDeletePatch } from '@/lib/admin/api';
 import dbConnect from '@/lib/db';
 import Content from '@/models/Content';
+import { validateRecommendations } from '@/lib/more-like-this';
 import Season from '@/models/Season';
 import Episode from '@/models/Episode';
 import SeasonTrailer from '@/models/SeasonTrailer';
@@ -46,7 +47,7 @@ export async function GET(request, { params }) {
   }
 
   const seasonsWithCount = await Promise.all(seasons.map(async (season) => {
-    const trailers = await SeasonTrailer.findOne({ seasonId: season._id }).lean();
+    const trailers = await SeasonTrailer.findOne({ seasonId: season._id, language: null }).lean();
     return {
       ...season,
       trailers: trailers && trailers.videoUrl ? [trailers] : [],
@@ -71,6 +72,11 @@ export async function POST(request, { params }) {
   const series = await Content.findOne({ _id: id, type: 'series', isDeleted: { $ne: true } });
   if (!series) return Response.json({ success: false, message: 'Series not found' }, { status: 404 });
 
+  const recommendations = await validateRecommendations(body.seriesIds, 'series', id);
+  if (recommendations.error) {
+    return Response.json({ success: false, message: recommendations.error }, { status: 400 });
+  }
+
   // Season number validation: unique inside Series
   const existingSeason = await Season.findOne({
     seriesId: id,
@@ -90,6 +96,7 @@ export async function POST(request, { params }) {
         poster: body.poster || '',
         isDeleted: false,
         isActive: body.isActive !== undefined ? Boolean(body.isActive) : true,
+        seriesIds: recommendations.ids ?? [],
         cast: body.cast || { actors: [], directors: [], writers: [] },
       },
     },
@@ -101,7 +108,7 @@ export async function POST(request, { params }) {
 
   if (body.trailers && Array.isArray(body.trailers)) {
     await SeasonTrailer.findOneAndUpdate(
-      { seasonId: season._id, seriesId: id },
+      { seasonId: season._id, seriesId: id, language: null },
       {
         $set: {
           languages: body.trailers,
@@ -186,7 +193,13 @@ export async function PUT(request, { params }) {
     }
   }
 
+  const recommendations = await validateRecommendations(body.seriesIds, 'series', id);
+  if (recommendations.error) {
+    return Response.json({ success: false, message: recommendations.error }, { status: 400 });
+  }
+
   const updateFields = {};
+  if (recommendations.ids) updateFields.seriesIds = recommendations.ids;
   if (seasonNumber !== undefined) updateFields.seasonNumber = Number(seasonNumber);
   if (title !== undefined) updateFields.title = title;
   if (description !== undefined) updateFields.description = description;
@@ -206,7 +219,7 @@ export async function PUT(request, { params }) {
 
   if (body.trailers && Array.isArray(body.trailers)) {
     await SeasonTrailer.findOneAndUpdate(
-      { seasonId: seasonId, seriesId: id },
+      { seasonId: seasonId, seriesId: id, language: null },
       {
         $set: {
           languages: body.trailers,

@@ -1,3 +1,4 @@
+import { canAssignArtistType } from '@/lib/admin/artist-types';
 import dbConnect from '@/lib/db';
 import Artist from '@/models/Artist';
 import { requireAdmin } from '@/lib/admin/auth';
@@ -34,7 +35,7 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  const { error } = await requireAdmin(request);
+  const { error } = await requireAdmin(request, 'content');
   if (error) return error;
 
   try {
@@ -49,6 +50,10 @@ export async function POST(request) {
     }
 
     await dbConnect();
+
+    if (!(await canAssignArtistType(type))) {
+      return Response.json({ success: false, message: 'Select an active artist type.' }, { status: 400 });
+    }
 
     const artist = await Artist.create({
       name,

@@ -5,6 +5,7 @@ import dbConnect from '@/lib/db';
 import { requireAuth } from '@/lib/authMiddleware';
 import s3 from '@/lib/s3';
 import SeasonTrailer from '@/models/SeasonTrailer';
+import Content from '@/models/Content';
 
 const EXPIRES_IN = 3600;
 
@@ -26,10 +27,10 @@ export async function GET(request, { params }) {
 
     const trailer = await SeasonTrailer.findOne(
       { _id: trailerId, isActive: true },
-      { videoKey: 1 }
+      { videoKey: 1, seriesId: 1 }
     ).lean();
 
-    if (!trailer) {
+    if (!trailer || !await Content.exists({ _id: trailer.seriesId, type: 'series', isActive: true, isDeleted: { $ne: true } })) {
       return Response.json(
         { success: false, message: 'Trailer not found' },
         { status: 404 }

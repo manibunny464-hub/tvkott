@@ -1,3 +1,5 @@
+import { lookupRecommendationTitles } from '@/lib/more-like-this';
+import { applyLanguageDraft, applyPrimaryLanguage, prepareLocalizations } from '@/lib/admin/localizations';
 import { requireAdmin, writeAuditLog } from '@/lib/admin/auth';
 import { paginationMeta, parsePagination, readBody } from '@/lib/admin/api';
 import { buildContentFilters, buildContentPayload } from '@/lib/admin/content-payload';
@@ -15,6 +17,9 @@ export async function GET(request) {
   const listAll = ['1', 'true', 'yes'].includes(String(searchParams.get('all') || '').toLowerCase());
   const query = buildContentFilters(searchParams, 'series');
   await dbConnect();
+  if (searchParams.get('picker') === '1') {
+    return Response.json({ success: true, series: await lookupRecommendationTitles(searchParams, 'series') });
+  }
 
   try {
     const contentsToClean = await Content.find({
@@ -47,9 +52,9 @@ export async function GET(request) {
 
   const [series, total] = await Promise.all([
     (listAll
-      ? Content.find(query).sort({ title: 1 })
-      : Content.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit)
-    ).lean(),
+      ? Content.find(query).sort({ title: 1, _id: 1 })
+      : Content.find(query).sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit)
+    ).select("+primaryLanguage +localizations").lean(),
     Content.countDocuments(query),
   ]);
   const seriesIds = series.map((item) => item._id);
@@ -92,7 +97,12 @@ export async function POST(request) {
 
   try {
     const { data, formData } = await readBody(request);
+    const localized = await prepareLocalizations(data, formData);
+    if (localized.error) return Response.json({ success: false, message: localized.error }, { status: 400 });
+    applyPrimaryLanguage(data, localized);
     const payload = await buildContentPayload({ data, formData, type: 'series' });
+    applyLanguageDraft(payload, localized);
+    if (localized.selectedLanguageCodes) payload.isComingSoon = false;
     delete payload.videoSource;
     delete payload.videoUrl;
     delete payload.rating;

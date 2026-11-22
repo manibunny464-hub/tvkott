@@ -2,14 +2,15 @@ import { verifyToken } from '@/lib/jwt';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
 
-export async function requireAuth(request) {
+export async function requireAuth(request, { allowLegacyHeaders = false } = {}) {
   const authHeader = request.headers.get('authorization');
   let token = null;
 
   if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.slice(7);
   } else {
-    token = request.cookies.get('token')?.value || request.cookies.get('chirpii_admin_session')?.value;
+    token = (allowLegacyHeaders && (request.headers.get('x-auth-token') || request.headers.get('token'))) ||
+      request.cookies.get('token')?.value || request.cookies.get('chirpii_admin_session')?.value;
   }
 
   if (!token) {

@@ -1,6 +1,5 @@
-import AdminRoutePage from '@/components/admin/admin-route';
+import { redirect } from 'next/navigation';
 
-export default async function VideoDetailPage({ params }) {
-  const { id } = await params;
-  return <AdminRoutePage view="video-detail" videoId={id} />;
+export default function RetiredUploadPage() {
+  redirect('/admin/movies');
 }

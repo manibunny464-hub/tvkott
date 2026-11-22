@@ -10,7 +10,7 @@ export async function GET(request, { params }) {
   const { seasonId } = await params;
   await dbConnect();
 
-  const trailer = await SeasonTrailer.findOne({ seasonId }).lean();
+  const trailer = await SeasonTrailer.findOne({ seasonId, language: null }).lean();
   return Response.json({ success: true, trailer });
 }
 
@@ -29,7 +29,7 @@ export async function POST(request, { params }) {
 
   // Create or Update SeasonTrailer
   const trailer = await SeasonTrailer.findOneAndUpdate(
-    { seasonId },
+    { seasonId, language: null },
     {
       $set: {
         seriesId: season.seriesId,

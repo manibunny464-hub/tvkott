@@ -1,8 +1,12 @@
+import { hasPermission, requireAdminPage } from '@/lib/admin/auth';
 import { redirect } from 'next/navigation';
 import dbConnect from '@/lib/db';
 import Content from '@/models/Content';
+import AdminRoutePage from '@/components/admin/admin-route';
 
 export default async function SeriesDetailPage({ params }) {
+  const admin = await requireAdminPage();
+  if (!(await hasPermission(admin, 'series.view'))) redirect('/admin');
   const { id } = await params;
 
   if (!id) {
@@ -24,8 +28,7 @@ export default async function SeriesDetailPage({ params }) {
   }
 
   if (series) {
-    const slug = series.slug || String(series.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    redirect(`/admin/seasons?series=${slug}`);
+    return <AdminRoutePage view="series-preview" seriesEditorId={String(series._id)} />;
   }
 
   redirect('/admin/series');
