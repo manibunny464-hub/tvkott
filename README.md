@@ -22,7 +22,7 @@ TVK OTT is a Next.js application with a content administration panel and mobile 
 3. Set `MONGODB_URI` to a development database and generate a unique `JWT_SECRET`. Add S3 settings if you need to test media uploads.
 4. Run `npm run dev` and open the [app](http://localhost:3000) or [Admin Login](http://localhost:3000/admin/login).
 
-An existing admin signs in using the account stored in MongoDB. To bootstrap a new development database, set `ADMIN_EMAIL` and `ADMIN_PASSWORD` before the first sign-in. The first successful sign-in creates the account. You can remove the bootstrap variables afterward.
+An existing admin signs in using the account stored in MongoDB. To sign in as `admin`, set `ADMIN_USERNAME_EMAIL` to the existing admin’s email. The alias uses the account’s existing password and defaults to `ADMIN_EMAIL` or `admin@tvk.local`. To bootstrap a new development database, set `ADMIN_EMAIL` and `ADMIN_PASSWORD` before the first sign-in. The first successful sign-in creates the account. You can remove the bootstrap variables afterward.
 
 ## Deployment configuration
 

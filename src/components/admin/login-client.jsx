@@ -89,7 +89,7 @@ export default function LoginClient() {
             {/* Email Field */}
             <div>
               <label className="block text-xs font-semibold tracking-wider uppercase text-white/70 mb-2">
-                {process.env.NODE_ENV === "development" ? "Admin Username or Email" : "Admin Email"}
+                Admin Username or Email
               </label>
               <div className="relative group">
                 <Mail
@@ -97,13 +97,13 @@ export default function LoginClient() {
                   size={18}
                 />
                 <input
-                  type={process.env.NODE_ENV === "development" ? "text" : "email"}
+                  type="text"
                   required
                   autoComplete="email"
                   value={form.email}
                   onChange={(e) => setForm((curr) => ({ ...curr, email: e.target.value }))}
                   className="w-full h-12 bg-[#160e0b]/90 border border-white/10 rounded-2xl pl-11 pr-4 text-sm text-white placeholder-white/25 outline-none transition-all focus:border-[#dcb05c] focus:ring-2 focus:ring-[#dcb05c]/20"
-                  placeholder="name@example.com"
+                  placeholder="admin or name@example.com"
                 />
               </div>
             </div>

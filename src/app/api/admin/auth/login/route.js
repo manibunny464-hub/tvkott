@@ -30,9 +30,8 @@ export async function POST(request) {
 
     await dbConnect({ skipMaintenance: true });
     const identifier = email.toLowerCase().trim();
-    const localDev = process.env.NODE_ENV === 'development' &&
-      /^mongodb:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?\//.test(process.env.MONGODB_URI || '');
-    const cleanEmail = localDev && identifier === 'admin' ? 'admin@tvk.local' : identifier;
+    const adminAliasEmail = (process.env.ADMIN_USERNAME_EMAIL || process.env.ADMIN_EMAIL || 'admin@tvk.local').trim().toLowerCase();
+    const cleanEmail = identifier === 'admin' ? adminAliasEmail : identifier;
 
     // 1. Check if user exists in database
     let admin = await AdminUser.findOne({ email: cleanEmail });
