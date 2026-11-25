@@ -19,16 +19,16 @@ export async function POST(request) {
   if (limited) return limited;
 
   try {
-    await dbConnect();
-    const { email, password } = await request.json();
+    const { email, password } = (await request.json().catch(() => null)) ?? {};
 
-    if (!email || !password) {
+    if (typeof email !== 'string' || !email.trim() || typeof password !== 'string' || !password) {
       return NextResponse.json(
         { success: false, message: 'Email and password are required' },
         { status: 400 }
       );
     }
 
+    await dbConnect({ skipMaintenance: true });
     const cleanEmail = email.toLowerCase().trim();
 
     // 1. Check if user exists in database
@@ -137,6 +137,12 @@ export async function POST(request) {
     return response;
   } catch (error) {
     console.error('[admin/auth/login] Error:', error);
+    if (error.name === 'MongooseServerSelectionError' || error.name === 'MongoNetworkError') {
+      return NextResponse.json(
+        { success: false, message: 'The login database is unavailable. Please try again shortly.' },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
       { success: false, message: 'Login failed' },
       { status: 500 }

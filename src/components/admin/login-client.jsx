@@ -1,20 +1,26 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function LoginClient() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const requestInFlight = useRef(false);
+  const busy = isSubmitting || isPending;
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
 
   async function handleSubmit(event) {
     event.preventDefault();
+    if (requestInFlight.current || isPending) return;
+    requestInFlight.current = true;
+    setIsSubmitting(true);
     setError('');
 
     try {
@@ -31,8 +37,11 @@ export default function LoginClient() {
       }
 
       startTransition(() => router.replace('/admin'));
-    } catch (err) {
+    } catch {
       setError('Connection failed. Please try again.');
+    } finally {
+      requestInFlight.current = false;
+      setIsSubmitting(false);
     }
   }
 
@@ -140,17 +149,12 @@ export default function LoginClient() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isPending}
+              disabled={busy}
+              aria-busy={busy}
               className="w-full h-12 mt-2 rounded-2xl bg-gradient-to-r from-[#dcb05c] via-[#38bdf8] to-[#9d2923] text-white font-bold text-sm shadow-lg shadow-[#dcb05c]/25 hover:shadow-[#dcb05c]/45 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {isPending ? (
-                <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-              ) : (
-                <span>Login Securely</span>
-              )}
+              {busy && <Loader2 size={15} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}
+              <span>{busy ? 'Signing in…' : 'Login Securely'}</span>
             </button>
           </form>
 
