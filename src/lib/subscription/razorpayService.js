@@ -64,13 +64,13 @@ export async function getOrCreateRazorpayPlan(plan) {
     period,
     interval,
     item: {
-      name: `Chirpii ${plan.name}`,
+      name: `TVK OTT ${plan.name}`,
       amount: amountInPaise,
       currency: 'INR',
       description: plan.tagline || `${plan.name} Auto-Renew Subscription`,
     },
     notes: {
-      chirpiiPlanId: plan._id.toString(),
+      tvkPlanId: plan._id.toString(),
       planDuration: String(plan.duration || 30),
     },
   });

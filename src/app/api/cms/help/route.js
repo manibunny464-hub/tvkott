@@ -13,7 +13,7 @@ export async function GET() {
         content: 'Our support team is here to assist you with any questions or technical issues 24/7.',
         metadata: {
           phone: '+91 9999999999',
-          email: 'support@chirpii.com',
+          email: process.env.NEXT_PUBLIC_SUPPORT_EMAIL || '',
           whatsapp: '+91 7777777777'
         }
       });

@@ -58,8 +58,8 @@ export default function OffcanvasMenu({ isOpen, onClose }) {
         <div className="d-flex align-items-center justify-content-between p-4 border-bottom border-secondary border-opacity-25">
           <div className="position-relative" style={{ width: "120px", height: "42px" }}>
             <Image
-              src="/images/logo1.png"
-              alt="Chirpii"
+              src="/tvk-admin-logo.webp"
+              alt="TVK OTT"
               fill
               sizes="120px"
               style={{ objectFit: "contain" }}
@@ -88,7 +88,7 @@ export default function OffcanvasMenu({ isOpen, onClose }) {
         }}>
           <div className="d-flex align-items-center gap-2 mb-1">
             <span className="badge bg-warning text-dark fw-bold">PRO</span>
-            <span className="fw-bold text-white small">Chirpii Premium</span>
+            <span className="fw-bold text-white small">TVK OTT Premium</span>
           </div>
           <p className="text-secondary small mb-2" style={{ fontSize: "0.8rem" }}>
             Unlimited short series & episodes ad-free.
@@ -96,7 +96,7 @@ export default function OffcanvasMenu({ isOpen, onClose }) {
           <a
             href="#premium"
             onClick={() => handleLinkClick("#premium")}
-            className="btn btn-chirpii-primary btn-sm w-100 py-1"
+            className="btn btn-tvk-primary btn-sm w-100 py-1"
             style={{ fontSize: "0.82rem" }}
           >
             Upgrade Now ₹499/yr
@@ -136,7 +136,7 @@ export default function OffcanvasMenu({ isOpen, onClose }) {
           <a
             href="#download"
             onClick={() => handleLinkClick("#download")}
-            className="btn btn-chirpii-primary w-100 mb-3"
+            className="btn btn-tvk-primary w-100 mb-3"
             style={{ fontSize: "0.9rem" }}
           >
             <i className="bi bi-download me-1"></i> Download App
@@ -151,7 +151,7 @@ export default function OffcanvasMenu({ isOpen, onClose }) {
           </div>
 
           <p className="text-center text-muted small mb-0" style={{ fontSize: "0.75rem" }}>
-            © 2026 Chirpii Inc. All rights reserved.
+            © 2026 TVK OTT All rights reserved.
           </p>
         </div>
       </div>

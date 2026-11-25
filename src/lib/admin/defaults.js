@@ -1,12 +1,12 @@
-export const ADMIN_COOKIE_NAME = 'chirpii_admin_session';
+export const ADMIN_COOKIE_NAME = 'tvk_admin_session';
 
 export const defaultAdminSettings = {
-  platformName: 'Chirpii Admin',
+  platformName: 'TVK OTT Admin',
   tagline: 'Small wings, big emotions',
   logoUrl: '',
   faviconUrl: '',
   timezone: 'Asia/Kolkata',
-  playStoreUrl: 'https://play.google.com/store/apps/details?id=com.chirpii.app',
+  playStoreUrl: (process.env.NEXT_PUBLIC_PLAY_STORE_URL || ''),
   theme: {
     primary: '#00d9ff',
     accent: '#ff1f8f',
@@ -45,7 +45,7 @@ export const defaultAdminSettings = {
     stripeKeyMasked: '',
   },
   email: {
-    fromName: 'Chirpii',
+    fromName: 'TVK OTT',
     fromEmail: '',
     smtpHost: '',
     smtpPort: 587,

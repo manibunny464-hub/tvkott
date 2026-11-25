@@ -6,7 +6,7 @@ export default async function LegacyWatchRedirect() {
   const playStoreUrl =
     process.env.NEXT_PUBLIC_PLAYSTORE_URL ||
     settings?.playStoreUrl ||
-    'https://play.google.com/store/apps/details?id=com.chirpii.app';
+    (process.env.NEXT_PUBLIC_PLAY_STORE_URL || '');
 
   redirect(playStoreUrl);
 }

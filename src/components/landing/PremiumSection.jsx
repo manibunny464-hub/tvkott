@@ -42,7 +42,7 @@ export default function PremiumSection() {
   const features = [
     { text: "100% Ad-Free Entertainment", icon: "bi-shield-slash" },
     { text: "Unlimited Short Series & Episodes", icon: "bi-infinity" },
-    { text: "Exclusive Chirpii Premium Originals", icon: "bi-star" },
+    { text: "Exclusive TVK OTT Premium Originals", icon: "bi-star" },
     { text: "Download & Watch Offline", icon: "bi-download" },
     { text: "Ultra HD Vertical Streaming & Spatial Audio", icon: "bi-badge-4k" },
   ];
@@ -78,13 +78,13 @@ export default function PremiumSection() {
       <div className="container position-relative">
         {/* Section Header */}
         <div className="text-center mb-5" data-aos="fade-up">
-          <div className="chirpii-badge gold mb-3">
+          <div className="tvk-badge gold mb-3">
             <i className="bi bi-crown-fill text-gold"></i>
-            <span>CHIRPII VIP PASS</span>
+            <span>TVK OTT VIP PASS</span>
           </div>
           <h2 className="section-title">Unlock Unlimited Entertainment</h2>
           <p className="section-subtitle">
-            Enjoy uninterrupted storytelling with Chirpii Premium. Binge full episodes ad-free with exclusive member perks.
+            Enjoy uninterrupted storytelling with TVK OTT Premium. Binge full episodes ad-free with exclusive member perks.
           </p>
         </div>
 
@@ -323,7 +323,7 @@ export default function PremiumSection() {
               <div className="mt-2">
                 <a
                   href="#download"
-                  className="btn-chirpii-gold w-100 py-3 text-center fs-6"
+                  className="btn-tvk-gold w-100 py-3 text-center fs-6"
                 >
                   <i className="bi bi-credit-card-2-front-fill me-1"></i> Subscribe Now (Instant Access)
                 </a>

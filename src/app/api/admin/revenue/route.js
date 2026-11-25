@@ -35,7 +35,7 @@ export async function GET(request) {
     return new Response(toCsv(data.transactions), {
       headers: {
         'content-type': 'text/csv; charset=utf-8',
-        'content-disposition': 'attachment; filename="chirpii-transactions.csv"',
+        'content-disposition': 'attachment; filename="tvk-transactions.csv"',
       },
     });
   }

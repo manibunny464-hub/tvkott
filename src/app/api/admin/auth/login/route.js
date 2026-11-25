@@ -29,7 +29,10 @@ export async function POST(request) {
     }
 
     await dbConnect({ skipMaintenance: true });
-    const cleanEmail = email.toLowerCase().trim();
+    const identifier = email.toLowerCase().trim();
+    const localDev = process.env.NODE_ENV === 'development' &&
+      /^mongodb:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?\//.test(process.env.MONGODB_URI || '');
+    const cleanEmail = localDev && identifier === 'admin' ? 'admin@tvk.local' : identifier;
 
     // 1. Check if user exists in database
     let admin = await AdminUser.findOne({ email: cleanEmail });
@@ -60,7 +63,8 @@ export async function POST(request) {
       }
 
       // Reset failed attempts
-      if (admin.failedLoginAttempts > 0 || admin.lockedUntil) {
+      if (admin.failedLoginAttempts > 0 || admin.lockedUntil || !admin.password.startsWith('scrypt:')) {
+        if (!admin.password.startsWith('scrypt:')) admin.password = hashPassword(password);
         admin.failedLoginAttempts = 0;
         admin.lockedUntil = undefined;
         await admin.save();

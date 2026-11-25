@@ -11,7 +11,7 @@ function resolveUrl(raw) {
   if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
   const base = (process.env.CDN_URL || process.env.CLOUDFRONT_URL || '').replace(/\/$/, '');
   if (base) return `${base}/${raw}`;
-  const bucket = process.env.S3_BUCKET_NAME || 'chirpii-dev';
+  const bucket = process.env.S3_BUCKET_NAME;
   const region = process.env.AWS_REGION || 'ap-south-1';
   return `https://${bucket}.s3.${region}.amazonaws.com/${raw}`;
 }

@@ -15,7 +15,7 @@ export async function GET(request) {
       privacy = await CmsPage.create({
         key: 'privacy',
         title: 'Privacy Policy',
-        content: 'We value your privacy at Chirpii. This policy outlines how we handle your personal data.'
+        content: 'We value your privacy at TVK OTT. This policy outlines how we handle your personal data.'
       });
     }
 
@@ -27,7 +27,7 @@ export async function GET(request) {
         content: 'Our support team is here to assist you with any questions or technical issues 24/7.',
         metadata: {
           phone: '+91 9999999999',
-          email: 'support@chirpii.com',
+          email: process.env.NEXT_PUBLIC_SUPPORT_EMAIL || '',
           whatsapp: '+91 7777777777'
         }
       });
@@ -38,7 +38,7 @@ export async function GET(request) {
       about = await CmsPage.create({
         key: 'about',
         title: 'About Us',
-        content: 'Chirpii is the leading next-generation streaming platform for high-quality short movies.'
+        content: 'TVK OTT is the leading next-generation streaming platform for high-quality short movies.'
       });
     }
 

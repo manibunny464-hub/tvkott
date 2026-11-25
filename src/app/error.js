@@ -7,7 +7,7 @@ import { RotateCw, Home, Lock, AlertTriangle } from "lucide-react";
 
 export default function GlobalError({ error, reset }) {
   useEffect(() => {
-    console.error("[Chirpii Runtime Error]:", error);
+    console.error("[TVK OTT Runtime Error]:", error);
   }, [error]);
 
   return (
@@ -22,8 +22,8 @@ export default function GlobalError({ error, reset }) {
           <Link href="/">
             <div className="relative w-40 h-14 hover:scale-105 transition-transform">
               <Image
-                src="/chirpii-logo-transparent.png"
-                alt="Chirpii Logo"
+                src="/tvk-admin-logo.webp"
+                alt="TVK OTT Logo"
                 fill
                 className="object-contain"
                 priority
@@ -72,7 +72,7 @@ export default function GlobalError({ error, reset }) {
       </div>
 
       <p className="mt-8 text-xs text-white/30 relative z-10">
-        Chirpii Mini OTT • Small wings, big emotions
+        TVK OTT • Small wings, big emotions
       </p>
     </div>
   );

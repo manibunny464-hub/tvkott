@@ -17,12 +17,12 @@ const plusJakarta = Plus_Jakarta_Sans({
 
 export const metadata = {
   title: {
-    default: "Chirpii - Bite-Sized Stories, Massive Emotions | Mini OTT",
-    template: "%s | Chirpii",
+    default: "TVK OTT - Bite-Sized Stories, Massive Emotions | Mini OTT",
+    template: "%s | TVK OTT",
   },
   description: "India's premier Mini OTT platform for 2-minute regional micro dramas, romance, and thrillers.",
   icons: {
-    icon: "/chirpii-logo-transparent.png",
+    icon: "/tvk-admin-logo.webp",
   },
 };
 

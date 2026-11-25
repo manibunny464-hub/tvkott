@@ -114,11 +114,11 @@ export default function DownloadSection({ playStoreUrl }) {
 
               <h2 className="display-5 fw-extrabold text-white mb-3" style={{ fontWeight: 800, letterSpacing: "-0.5px" }}>
                 Your Entertainment. <br />
-                Your Language. <span className="text-gradient-brand">Your Chirpii.</span>
+                Your Language. <span className="text-gradient-brand">Your TVK OTT.</span>
               </h2>
 
               <p className="text-secondary lead mb-4" style={{ maxWidth: "540px", fontSize: "1.05rem", lineHeight: 1.6 }}>
-                Download Chirpii today and step into a world of vertical short-story cinema. Binge thrilling dramas, romantic cliffhangers, and mysteries in 8+ languages.
+                Download TVK OTT today and step into a world of vertical short-story cinema. Binge thrilling dramas, romantic cliffhangers, and mysteries in 8+ languages.
               </p>
 
               {/* Stats highlights */}
@@ -263,7 +263,7 @@ export default function DownloadSection({ playStoreUrl }) {
                 <div className="position-relative w-100 h-100">
                   <Image
                     src="/images/app-screen (2).jpeg"
-                    alt="Chirpii Welcome Screen"
+                    alt="TVK OTT Welcome Screen"
                     fill
                     sizes="240px"
                     style={{ objectFit: "contain", objectPosition: "top center" }}

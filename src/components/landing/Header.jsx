@@ -54,8 +54,8 @@ export default function Header({ onOpenMenu }) {
             <Link href="#home" className="d-flex align-items-center text-decoration-none">
               <div className="position-relative" style={{ width: "130px", height: "44px" }}>
                 <Image
-                  src="/images/logo1.png"
-                  alt="Chirpii Logo"
+                  src="/tvk-admin-logo.webp"
+                  alt="TVK OTT Logo"
                   fill
                   sizes="130px"
                   style={{ objectFit: "contain", objectPosition: "left" }}

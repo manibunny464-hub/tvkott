@@ -2106,7 +2106,7 @@ url("/landing/fonts/bootstrap-icons.woff?e34853135f9e39acf64315236852cd5a") form
 .bi-globe-central-south-asia-fill::before { content: "\f91d"; }
 .bi-globe-europe-africa-fill::before { content: "\f91e"; }
 
-@scope (.chirpii-landing) {
+@scope (.tvk-landing) {
 /*!
  * Bootstrap  v5.3.8 (https://getbootstrap.com/)
  * Copyright 2011-2025 The Bootstrap Authors
@@ -2697,13 +2697,13 @@ url("/landing/fonts/bootstrap-icons.woff?e34853135f9e39acf64315236852cd5a") form
   --bg-secondary: #0d0d12;
   --bg-card: #15151b;
   --bg-card-hover: #1c1c24;
-  --chirpii-pink: #FF2990;
-  --chirpii-pink-glow: rgba(255, 41, 144, 0.35);
-  --chirpii-cyan: #09C5D6;
-  --chirpii-cyan-glow: rgba(9, 197, 214, 0.35);
-  --chirpii-purple: #A66BEB;
-  --chirpii-gold: #FFB52E;
-  --chirpii-gold-glow: rgba(255, 181, 46, 0.35);
+  --tvk-pink: #FF2990;
+  --tvk-pink-glow: rgba(255, 41, 144, 0.35);
+  --tvk-cyan: #09C5D6;
+  --tvk-cyan-glow: rgba(9, 197, 214, 0.35);
+  --tvk-purple: #A66BEB;
+  --tvk-gold: #FFB52E;
+  --tvk-gold-glow: rgba(255, 181, 46, 0.35);
   --text-primary: #FFFFFF;
   --text-secondary: #A6A6A6;
   --border-glass: rgba(255, 255, 255, 0.08);
@@ -2749,7 +2749,7 @@ url("/landing/fonts/bootstrap-icons.woff?e34853135f9e39acf64315236852cd5a") form
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--chirpii-pink);
+  background: var(--tvk-pink);
 }
 
 /* Typography & Utility Gradient Classes */
@@ -2772,15 +2772,15 @@ url("/landing/fonts/bootstrap-icons.woff?e34853135f9e39acf64315236852cd5a") form
 }
 
 .text-cyan {
-  color: var(--chirpii-cyan) !important;
+  color: var(--tvk-cyan) !important;
 }
 
 .text-pink {
-  color: var(--chirpii-pink) !important;
+  color: var(--tvk-pink) !important;
 }
 
 .text-gold {
-  color: var(--chirpii-gold) !important;
+  color: var(--tvk-gold) !important;
 }
 
 .text-muted-custom {
@@ -2803,7 +2803,7 @@ url("/landing/fonts/bootstrap-icons.woff?e34853135f9e39acf64315236852cd5a") form
 }
 
 /* Button Styles */
-.btn-chirpii-primary {
+.btn-tvk-primary {
   background: var(--gradient-brand);
   color: #ffffff !important;
   font-weight: 600;
@@ -2811,7 +2811,7 @@ url("/landing/fonts/bootstrap-icons.woff?e34853135f9e39acf64315236852cd5a") form
   border-radius: 999px;
   padding: 12px 28px;
   transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 20px var(--chirpii-pink-glow);
+  box-shadow: 0 4px 20px var(--tvk-pink-glow);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2822,7 +2822,7 @@ url("/landing/fonts/bootstrap-icons.woff?e34853135f9e39acf64315236852cd5a") form
   z-index: 1;
 }
 
-.btn-chirpii-primary::before {
+.btn-tvk-primary::before {
   content: "";
   position: absolute;
   top: 0;
@@ -2836,17 +2836,17 @@ url("/landing/fonts/bootstrap-icons.woff?e34853135f9e39acf64315236852cd5a") form
   border-radius: 999px;
 }
 
-.btn-chirpii-primary:hover {
+.btn-tvk-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 30px rgba(9, 197, 214, 0.5);
   color: #ffffff;
 }
 
-.btn-chirpii-primary:hover::before {
+.btn-tvk-primary:hover::before {
   opacity: 1;
 }
 
-.btn-chirpii-outline {
+.btn-tvk-outline {
   background: rgba(255, 255, 255, 0.06);
   color: #ffffff !important;
   font-weight: 600;
@@ -2862,15 +2862,15 @@ url("/landing/fonts/bootstrap-icons.woff?e34853135f9e39acf64315236852cd5a") form
   backdrop-filter: blur(8px);
 }
 
-.btn-chirpii-outline:hover {
-  border-color: var(--chirpii-cyan);
+.btn-tvk-outline:hover {
+  border-color: var(--tvk-cyan);
   background: rgba(9, 197, 214, 0.15);
-  color: var(--chirpii-cyan) !important;
+  color: var(--tvk-cyan) !important;
   box-shadow: 0 0 20px rgba(9, 197, 214, 0.3);
   transform: translateY(-2px);
 }
 
-.btn-chirpii-gold {
+.btn-tvk-gold {
   background: var(--gradient-gold);
   color: #000000 !important;
   font-weight: 700;
@@ -2878,7 +2878,7 @@ url("/landing/fonts/bootstrap-icons.woff?e34853135f9e39acf64315236852cd5a") form
   border-radius: 999px;
   padding: 12px 28px;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 20px var(--chirpii-gold-glow);
+  box-shadow: 0 4px 20px var(--tvk-gold-glow);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2886,14 +2886,14 @@ url("/landing/fonts/bootstrap-icons.woff?e34853135f9e39acf64315236852cd5a") form
   text-decoration: none;
 }
 
-.btn-chirpii-gold:hover {
+.btn-tvk-gold:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(255, 181, 46, 0.6);
   color: #000000;
 }
 
 /* Glow Badges */
-.chirpii-badge {
+.tvk-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -2905,23 +2905,23 @@ url("/landing/fonts/bootstrap-icons.woff?e34853135f9e39acf64315236852cd5a") form
   text-transform: uppercase;
   background: rgba(255, 41, 144, 0.12);
   border: 1px solid rgba(255, 41, 144, 0.35);
-  color: var(--chirpii-pink);
+  color: var(--tvk-pink);
 }
 
-.chirpii-badge.cyan {
+.tvk-badge.cyan {
   background: rgba(9, 197, 214, 0.12);
   border-color: rgba(9, 197, 214, 0.35);
-  color: var(--chirpii-cyan);
+  color: var(--tvk-cyan);
 }
 
-.chirpii-badge.gold {
+.tvk-badge.gold {
   background: rgba(255, 181, 46, 0.12);
   border-color: rgba(255, 181, 46, 0.35);
-  color: var(--chirpii-gold);
+  color: var(--tvk-gold);
 }
 
 /* Cards & Hover Glows */
-.chirpii-card {
+.tvk-card {
   background: var(--bg-card);
   border: 1px solid var(--border-glass);
   border-radius: 20px;
@@ -2930,7 +2930,7 @@ url("/landing/fonts/bootstrap-icons.woff?e34853135f9e39acf64315236852cd5a") form
   overflow: hidden;
 }
 
-.chirpii-card:hover {
+.tvk-card:hover {
   border-color: rgba(9, 197, 214, 0.5);
   box-shadow: 0 10px 30px rgba(9, 197, 214, 0.15);
   transform: translateY(-4px);
@@ -2954,7 +2954,7 @@ url("/landing/fonts/bootstrap-icons.woff?e34853135f9e39acf64315236852cd5a") form
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 2px;
-  color: var(--chirpii-cyan);
+  color: var(--tvk-cyan);
   margin-bottom: 8px;
   display: inline-block;
 }
@@ -3025,9 +3025,9 @@ url("/landing/fonts/bootstrap-icons.woff?e34853135f9e39acf64315236852cd5a") form
 
 .swiper-button-next:hover,
 .swiper-button-prev:hover {
-  background: var(--chirpii-pink);
-  border-color: var(--chirpii-pink);
-  box-shadow: 0 0 20px var(--chirpii-pink-glow);
+  background: var(--tvk-pink);
+  border-color: var(--tvk-pink);
+  box-shadow: 0 0 20px var(--tvk-pink-glow);
 }
 
 .swiper-pagination-bullet {
@@ -3037,10 +3037,10 @@ url("/landing/fonts/bootstrap-icons.woff?e34853135f9e39acf64315236852cd5a") form
 }
 
 .swiper-pagination-bullet-active {
-  background: var(--chirpii-pink) !important;
+  background: var(--tvk-pink) !important;
   width: 24px !important;
   border-radius: 6px !important;
-  box-shadow: 0 0 10px var(--chirpii-pink-glow) !important;
+  box-shadow: 0 0 10px var(--tvk-pink-glow) !important;
 }
 
 /* Mobile Fixed Bottom Nav padding offset so content won't be blocked */
@@ -3323,4 +3323,4 @@ url("/landing/fonts/bootstrap-icons.woff?e34853135f9e39acf64315236852cd5a") form
 :scope { letter-spacing: normal; }
 h1,h2,h3,h4,h5,h6 { font-family: var(--font-main); letter-spacing: normal; }
 }
-html:has(.chirpii-landing) { scroll-behavior: smooth; scroll-padding-top: 80px; }
+html:has(.tvk-landing) { scroll-behavior: smooth; scroll-padding-top: 80px; }

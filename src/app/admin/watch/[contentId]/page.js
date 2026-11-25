@@ -107,7 +107,7 @@ function EmptyPanel({ title, description }) {
   return (
     <main className="min-h-screen bg-[#09111f] px-5 py-8 text-white">
       <section className="mx-auto max-w-4xl rounded-[8px] border border-white/10 bg-[#0d1628] p-8 shadow-2xl">
-        <p className="text-xs font-bold uppercase tracking-[0.22em] text-cyan-300">Chirpii Admin Preview</p>
+        <p className="text-xs font-bold uppercase tracking-[0.22em] text-cyan-300">TVK OTT Admin Preview</p>
         <h1 className="mt-4 text-3xl font-bold">{title}</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">{description}</p>
         <Link

@@ -7,7 +7,7 @@ export async function GET() {
     let page = await CmsPage.findOne({ key: 'about' }).lean();
 
     if (!page) {
-      const defaultContent = "Chirpii is the leading next-generation streaming platform for high-quality short movies and exclusive premium series. We collaborate with independent creators to bring you award-winning, bite-sized entertainment. Thank you for being a part of our growing community!";
+      const defaultContent = "TVK OTT is the leading next-generation streaming platform for high-quality short movies and exclusive premium series. We collaborate with independent creators to bring you award-winning, bite-sized entertainment. Thank you for being a part of our growing community!";
       page = await CmsPage.create({
         key: 'about',
         title: 'About Us',

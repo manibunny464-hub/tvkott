@@ -81,7 +81,7 @@ export default function TrendingStories() {
             <span className="section-tag">
               <i className="bi bi-fire me-1 text-danger"></i> Chartbusters
             </span>
-            <h2 className="section-title mb-2">Trending on Chirpii</h2>
+            <h2 className="section-title mb-2">Trending on TVK OTT</h2>
             <p className="text-secondary mb-0" style={{ maxWidth: "580px" }}>
               The most loved stories captivating thousands of viewers right now. Witness gripping cliffhangers and viral sensations.
             </p>

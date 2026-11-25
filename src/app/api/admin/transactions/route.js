@@ -120,7 +120,7 @@ function escapeRegex(string) {
       razorpayPaymentId: tx.razorpayPaymentId || '',
       razorpayOrderId: tx.razorpayOrderId || '',
       userName: tx.userId?.name || 'Viewer',
-      email: tx.userId?.email || `${tx.userId?.phone || 'viewer'}@phone.chirpii`,
+      email: tx.userId?.email || `${tx.userId?.phone || 'viewer'}@phone.tvk`,
       phone: tx.userId?.phone || '',
       planName: tx.planId?.name || 'Subscription Plan',
       amount: tx.amount,
@@ -136,7 +136,7 @@ function escapeRegex(string) {
       return new Response(toCsv(formattedTransactions), {
         headers: {
           'content-type': 'text/csv; charset=utf-8',
-          'content-disposition': 'attachment; filename="chirpii-transactions.csv"',
+          'content-disposition': 'attachment; filename="tvk-transactions.csv"',
         },
       });
     }

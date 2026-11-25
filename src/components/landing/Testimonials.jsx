@@ -58,7 +58,7 @@ export default function Testimonials() {
           </span>
           <h2 className="section-title">Loved by Story Lovers</h2>
           <p className="section-subtitle">
-            Join over 250,000+ enthusiastic viewers who enjoy their daily dose of short-story drama on Chirpii.
+            Join over 250,000+ enthusiastic viewers who enjoy their daily dose of short-story drama on TVK OTT.
           </p>
         </div>
 

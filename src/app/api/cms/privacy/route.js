@@ -7,7 +7,7 @@ export async function GET() {
     let page = await CmsPage.findOne({ key: 'privacy' }).lean();
 
     if (!page) {
-      const defaultContent = "We value your privacy at Chirpii. This policy outlines how we handle your personal data. We secure your credentials, payment details, and watch preferences. Your information is never sold, traded, or shared with third parties without your explicit permission. We employ high-standard encryption to protect your account activity.";
+      const defaultContent = "We value your privacy at TVK OTT. This policy outlines how we handle your personal data. We secure your credentials, payment details, and watch preferences. Your information is never sold, traded, or shared with third parties without your explicit permission. We employ high-standard encryption to protect your account activity.";
       page = await CmsPage.create({
         key: 'privacy',
         title: 'Privacy Policy',

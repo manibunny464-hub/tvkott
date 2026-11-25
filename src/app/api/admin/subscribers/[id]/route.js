@@ -70,7 +70,7 @@ export async function GET(request, { params }) {
       subscriber: {
         userId: user._id,
         name: user.name || 'Viewer',
-        email: user.email || `${user.phone || 'viewer'}@phone.chirpii`,
+        email: user.email || `${user.phone || 'viewer'}@phone.tvk`,
         phone: user.phone || '',
         status: user.status,
         joinedAt: user.createdAt,

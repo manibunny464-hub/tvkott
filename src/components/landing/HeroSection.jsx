@@ -187,7 +187,7 @@ export default function HeroSection() {
                 color: "#b0b0b8",
               }}
             >
-              Chirpii brings you a world of exciting short stories, gripping characters and powerful emotions — all in your language.
+              TVK OTT brings you a world of exciting short stories, gripping characters and powerful emotions — all in your language.
             </p>
 
             {/* Buttons Row matching exact colors, pills and icons */}
@@ -301,7 +301,7 @@ export default function HeroSection() {
                 height: "530px",
               }}
             >
-              {/* Left Smartphone Mockup (Chirpii Home Screen with sleek titanium frame) */}
+              {/* Left Smartphone Mockup (TVK OTT Home Screen with sleek titanium frame) */}
               <div
                 className="position-absolute shadow-lg"
                 data-aos="fade-up"
@@ -338,7 +338,7 @@ export default function HeroSection() {
                 <div className="position-relative w-100 h-100" style={{ paddingTop: "2px" }}>
                   <Image
                     src="/images/app-screen (6).jpeg"
-                    alt="Chirpii Screen"
+                    alt="TVK OTT Screen"
                     fill
                     sizes="240px"
                     style={{ objectFit: "contain", objectPosition: "top center" }}
@@ -395,7 +395,7 @@ export default function HeroSection() {
                 <div className="position-relative w-100 h-100" style={{ paddingTop: "2px" }}>
                   <Image
                     src="/images/app-screen (5).jpeg"
-                    alt="Chirpii Trending Screen"
+                    alt="TVK OTT Trending Screen"
                     fill
                     sizes="238px"
                     style={{ objectFit: "contain", objectPosition: "top center" }}

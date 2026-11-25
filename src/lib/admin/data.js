@@ -134,12 +134,12 @@ export function sanitizeSettingsPayload(payload) {
   const theme = payload.theme || {};
 
   return {
-    platformName: String(payload.platformName || 'Chirpii Admin').trim(),
+    platformName: String(payload.platformName || 'TVK OTT Admin').trim(),
     tagline: String(payload.tagline || '').trim(),
     logoUrl: String(payload.logoUrl || '').trim(),
     faviconUrl: String(payload.faviconUrl || '').trim(),
     timezone: String(payload.timezone || 'Asia/Kolkata').trim(),
-    playStoreUrl: String(payload.playStoreUrl || defaultAdminSettings.playStoreUrl || 'https://play.google.com/store/apps/details?id=com.chirpii.app').trim(),
+    playStoreUrl: String(payload.playStoreUrl || defaultAdminSettings.playStoreUrl || (process.env.NEXT_PUBLIC_PLAY_STORE_URL || '')).trim(),
     theme: {
       primary: isHex(theme.primary) ? theme.primary : defaultAdminSettings.theme.primary,
       accent: isHex(theme.accent) ? theme.accent : defaultAdminSettings.theme.accent,
@@ -180,7 +180,7 @@ export function sanitizeSettingsPayload(payload) {
       stripeKeyMasked: payload.payments?.stripeKeyMasked || '',
     },
     email: {
-      fromName: payload.email?.fromName || 'Chirpii',
+      fromName: payload.email?.fromName || 'TVK OTT',
       fromEmail: payload.email?.fromEmail || '',
       smtpHost: payload.email?.smtpHost || '',
       smtpPort: Number(payload.email?.smtpPort || 587),
@@ -634,8 +634,8 @@ export async function getUsersList({ page = 1, limit = 10, search = '', plan = '
       return {
         id: user._id,
         avatarUrl: user.avatarUrl || '',
-        name: user.name || 'Chirpii Viewer',
-        email: user.email || `${user.phone || 'viewer'}@phone.chirpii`,
+        name: user.name || 'TVK OTT Viewer',
+        email: user.email || `${user.phone || 'viewer'}@phone.tvk`,
         phone: user.phone,
         plan: user.isPremium ? 'Premium' : 'Free',
         status: user.status === 'suspended' ? 'Suspended' : 'Active',

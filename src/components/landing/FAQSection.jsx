@@ -7,24 +7,24 @@ export default function FAQSection() {
 
   const faqs = [
     {
-      q: "What is Chirpii?",
-      a: "Chirpii is India's premier short-story OTT and vertical entertainment streaming platform. We deliver premium, cinematic short-format series and episodic dramas designed specifically for smartphones with fast storytelling and zero fluff.",
+      q: "What is TVK OTT?",
+      a: "TVK OTT is India's premier short-story OTT and vertical entertainment streaming platform. We deliver premium, cinematic short-format series and episodic dramas designed specifically for smartphones with fast storytelling and zero fluff.",
     },
     {
-      q: "How can I watch stories on Chirpii?",
-      a: "You can download the Chirpii app for Android on Google Play or iOS on Apple App Store. Simply sign in using your mobile number and start streaming your favorite genres instantly.",
+      q: "How can I watch stories on TVK OTT?",
+      a: "You can download the TVK OTT app for Android on Google Play or iOS on Apple App Store. Simply sign in using your mobile number and start streaming your favorite genres instantly.",
     },
     {
       q: "Which languages are available?",
-      a: "Chirpii is available in 8+ Indian regional and global languages including Hindi, Telugu, Tamil, Malayalam, Kannada, Bengali, Marathi, and English, with authentic native dubbing and localized subtitles.",
+      a: "TVK OTT is available in 8+ Indian regional and global languages including Hindi, Telugu, Tamil, Malayalam, Kannada, Bengali, Marathi, and English, with authentic native dubbing and localized subtitles.",
     },
     {
-      q: "Is Chirpii free to use?",
-      a: "Yes! Chirpii offers a rich selection of free episodes and teasers for all users. You can upgrade to Chirpii VIP Premium to unlock full series, exclusive originals, ad-free watching, and offline downloads.",
+      q: "Is TVK OTT free to use?",
+      a: "Yes! TVK OTT offers a rich selection of free episodes and teasers for all users. You can upgrade to TVK OTT VIP Premium to unlock full series, exclusive originals, ad-free watching, and offline downloads.",
     },
     {
-      q: "What are the benefits of Chirpii Premium?",
-      a: "Chirpii Premium unlocks 100% ad-free streaming, all exclusive original series, binge-mode for all episodes without wait times, ultra HD video playback, and offline downloads for uninterrupted traveling entertainment.",
+      q: "What are the benefits of TVK OTT Premium?",
+      a: "TVK OTT Premium unlocks 100% ad-free streaming, all exclusive original series, binge-mode for all episodes without wait times, ultra HD video playback, and offline downloads for uninterrupted traveling entertainment.",
     },
     {
       q: "How can I subscribe?",
@@ -36,7 +36,7 @@ export default function FAQSection() {
     },
     {
       q: "How can I contact support?",
-      a: "Our customer support team is available 24/7. You can email us at support@chirpii.com or initiate an instant chat through the 'Help & Support' section in your profile tab.",
+      a: "Open Help & Support in your profile for contact options.",
     },
   ];
 
@@ -109,7 +109,7 @@ export default function FAQSection() {
           </span>
           <h2 className="section-title">Frequently Asked Questions</h2>
           <p className="section-subtitle">
-            Everything you need to know about Chirpii, streaming options, subscriptions, and supported devices.
+            Everything you need to know about TVK OTT, streaming options, subscriptions, and supported devices.
           </p>
         </div>
 

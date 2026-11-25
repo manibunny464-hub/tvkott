@@ -23,7 +23,7 @@ const AdminSettingSchema = new mongoose.Schema(
     },
     platformName: {
       type: String,
-      default: 'Chirpii Admin',
+      default: 'TVK OTT Admin',
     },
     tagline: {
       type: String,
@@ -43,7 +43,7 @@ const AdminSettingSchema = new mongoose.Schema(
     },
     playStoreUrl: {
       type: String,
-      default: 'https://play.google.com/store/apps/details?id=com.chirpii.app',
+      default: (process.env.NEXT_PUBLIC_PLAY_STORE_URL || ''),
     },
     theme: {
       type: ThemeSchema,
@@ -75,7 +75,7 @@ const AdminSettingSchema = new mongoose.Schema(
       stripeKeyMasked: { type: String, default: '' },
     },
     email: {
-      fromName: { type: String, default: 'Chirpii' },
+      fromName: { type: String, default: 'TVK OTT' },
       fromEmail: { type: String, default: '' },
       smtpHost: { type: String, default: '' },
       smtpPort: { type: Number, default: 587 },

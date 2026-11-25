@@ -63,7 +63,7 @@ export async function GET(request, { params }) {
         razorpayPaymentId: tx.razorpayPaymentId || '',
         razorpayOrderId: tx.razorpayOrderId || '',
         userName: tx.userId?.name || 'Viewer',
-        email: tx.userId?.email || `${tx.userId?.phone || 'viewer'}@phone.chirpii`,
+        email: tx.userId?.email || `${tx.userId?.phone || 'viewer'}@phone.tvk`,
         phone: tx.userId?.phone || '',
         planName: tx.planId?.name || 'Subscription Plan',
         amount: tx.amount,

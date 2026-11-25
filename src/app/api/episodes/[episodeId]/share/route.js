@@ -35,27 +35,27 @@ export async function GET(request, { params }) {
     const playStoreUrl =
       process.env.NEXT_PUBLIC_PLAYSTORE_URL ||
       settings?.playStoreUrl ||
-      'https://play.google.com/store/apps/details?id=com.chirpii.app';
+      (process.env.NEXT_PUBLIC_PLAY_STORE_URL || '');
 
     const series = episode.seriesId || {};
     const season = episode.seasonId || {};
 
     const seriesId = series._id ? series._id.toString() : '';
-    const seriesTitle = series.title || 'Chirpii Original';
+    const seriesTitle = series.title || 'TVK OTT Original';
     const seasonId = season._id ? season._id.toString() : '';
     const seasonNumber = season.seasonNumber ?? 1;
     const seasonTitle = season.title || `Season ${seasonNumber}`;
     const episodeNumber = episode.episodeNumber ?? 1;
     const episodeTitle = episode.title || `Episode ${episodeNumber}`;
-    const description = episode.description || series.description || 'Watch now on Chirpii Mini OTT!';
+    const description = episode.description || series.description || 'Watch now on TVK OTT!';
     const thumbnailUrl = episode.thumbnailUrl || season.poster || series.posterUrl || series.verticalPoster || '';
 
-    // Smart Deep Link (Opens directly in Chirpii Mobile App if already installed)
-    const deepLink = `chirpii://watch?seriesId=${seriesId}&seasonId=${seasonId}&episodeId=${episodeId}&season=${seasonNumber}&episode=${episodeNumber}`;
+    // Smart Deep Link (Opens directly in TVK OTT Mobile App if already installed)
+    const deepLink = `tvkott://watch?seriesId=${seriesId}&seasonId=${seasonId}&episodeId=${episodeId}&season=${seasonNumber}&episode=${episodeNumber}`;
 
     // Formatted Social Share Text (For WhatsApp, Telegram, Twitter, SMS)
     const formattedShareTitle = `${seriesTitle} | ${seasonTitle} - Episode ${episodeNumber}${episodeTitle !== `Episode ${episodeNumber}` ? `: ${episodeTitle}` : ''}`;
-    const formattedShareMessage = `🎬 Watch ${formattedShareTitle}\n\n🔥 ${description}\n\n👉 Install & Watch now on Chirpii Mini OTT:\n${playStoreUrl}`;
+    const formattedShareMessage = `🎬 Watch ${formattedShareTitle}\n\n🔥 ${description}\n\n👉 Install & Watch now on TVK OTT:\n${playStoreUrl}`;
 
     return Response.json({
       success: true,
@@ -86,7 +86,7 @@ export async function GET(request, { params }) {
           image: thumbnailUrl,
           url: playStoreUrl,
           type: 'video.episode',
-          siteName: 'Chirpii Mini OTT',
+          siteName: 'TVK OTT',
         },
       },
     });

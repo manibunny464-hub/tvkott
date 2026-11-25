@@ -122,7 +122,7 @@ export async function POST(request) {
         Key: key,
         ContentType: body.contentType || 'video/mp4',
         Metadata: {
-          source: 'chirpii-admin',
+          source: 'tvk-admin',
         },
       });
       const upload = await s3.send(command);

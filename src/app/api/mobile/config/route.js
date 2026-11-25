@@ -10,7 +10,7 @@ export async function GET() {
     const settings = await getMasterSettings();
 
     const config = {
-      platformName: settings.platformName || 'Chirpii Mini OTT',
+      platformName: settings.platformName || 'TVK OTT',
       tagline: settings.tagline || '',
       logoUrl: settings.logoUrl || '',
       player: {

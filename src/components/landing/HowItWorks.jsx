@@ -42,7 +42,7 @@ export default function HowItWorks() {
           </span>
           <h2 className="section-title">Your Next Favourite Story Is Just a Tap Away</h2>
           <p className="section-subtitle">
-            Chirpii is engineered for modern vertical streaming — quick episodes, rich emotions, zero hassle.
+            TVK OTT is engineered for modern vertical streaming — quick episodes, rich emotions, zero hassle.
           </p>
         </div>
 

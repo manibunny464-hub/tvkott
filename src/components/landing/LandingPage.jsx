@@ -32,7 +32,7 @@ export default function LandingPage({ playStoreUrl }) {
 
   return (
     <main
-      className="chirpii-landing has-bottom-nav position-relative overflow-hidden"
+      className="tvk-landing has-bottom-nav position-relative overflow-hidden"
       data-aos-easing="ease-out-cubic"
       data-aos-duration="800"
       data-aos-delay="0"
@@ -55,7 +55,7 @@ export default function LandingPage({ playStoreUrl }) {
       {/* Trending Now Section */}
       <TrendingStories />
 
-      {/* How Chirpii Works */}
+      {/* How TVK OTT Works */}
       <HowItWorks />
 
       {/* Multiple Regional Languages */}

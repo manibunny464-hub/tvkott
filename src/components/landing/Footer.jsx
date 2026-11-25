@@ -82,8 +82,8 @@ export default function Footer() {
             }}
           >
             <Image
-              src="/images/favicon.png"
-              alt="Chirpii Favicon"
+              src="/tvk-admin-logo.webp"
+              alt="TVK OTT Favicon"
               width={86}
               height={86}
               style={{
@@ -172,8 +172,8 @@ export default function Footer() {
           <div className="col-12 col-md-6 col-lg-4 text-center text-md-start">
             <div className="position-relative mb-3 mx-auto mx-md-0" style={{ width: "145px", height: "48px" }}>
               <Image
-                src="/images/logo1.png"
-                alt="Chirpii"
+                src="/tvk-admin-logo.webp"
+                alt="TVK OTT"
                 fill
                 sizes="145px"
                 style={{ objectFit: "contain", objectPosition: "left" }}
@@ -266,13 +266,15 @@ export default function Footer() {
             <ul className="list-unstyled d-flex flex-column gap-2 small text-secondary">
               <li className="d-flex align-items-start justify-content-center justify-content-lg-start gap-2">
                 <i className="bi bi-geo-alt text-pink mt-1"></i>
-                <span style={{ maxWidth: "290px" }}>Chirpii Media HQ, Cyber Gateway, HITEC City, Hyderabad, Telangana 500081</span>
+                <span style={{ maxWidth: "290px" }}>TVK OTT</span>
               </li>
               <li className="d-flex align-items-center justify-content-center justify-content-lg-start gap-2">
                 <i className="bi bi-envelope text-cyan"></i>
-                <a href="mailto:support@chirpii.com" className="text-secondary text-decoration-none">
-                  support@chirpii.com
-                </a>
+                {process.env.NEXT_PUBLIC_SUPPORT_EMAIL && (
+                  <a href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL}`} className="text-secondary text-decoration-none">
+                    {process.env.NEXT_PUBLIC_SUPPORT_EMAIL}
+                  </a>
+                )}
               </li>
               <li className="d-flex align-items-center justify-content-center justify-content-lg-start gap-2">
                 <i className="bi bi-headset text-gold"></i>
@@ -329,7 +331,7 @@ export default function Footer() {
         >
           <div className="d-flex align-items-center gap-2 text-center text-md-start">
             <span style={{ fontSize: "0.82rem" }}>
-              © {currentYear} Chirpii Media Entertainment Pvt. Ltd. All Rights Reserved.
+              © {currentYear} TVK OTT All Rights Reserved.
             </span>
           </div>
 

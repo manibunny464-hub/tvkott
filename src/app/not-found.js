@@ -15,7 +15,7 @@ export default function NotFound() {
         {/* Bird Mascot with Cut Wing */}
         <div className="relative w-64 h-64 sm:w-80 sm:h-80 rounded-3xl overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.6)] border border-white/10 mb-6 bg-[#09111e] group-hover:scale-[1.02] transition-transform duration-300">
           <Image
-            src="/chirpii-404-flying-bird.jpg"
+            src="/tvk-admin-logo.webp"
             alt="404 Mascot"
             fill
             className="object-cover"

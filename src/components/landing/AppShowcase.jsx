@@ -208,7 +208,7 @@ export default function AppShowcase() {
           </span>
           <h2 className="section-title">Entertainment Designed for Your Mobile</h2>
           <p className="section-subtitle">
-            Take a tour through the Chirpii mobile app experience. Engineered with ultra-smooth vertical navigation, crystal audio, and lightning-fast loading.
+            Take a tour through the TVK OTT mobile app experience. Engineered with ultra-smooth vertical navigation, crystal audio, and lightning-fast loading.
           </p>
         </div>
 
@@ -287,10 +287,10 @@ export default function AppShowcase() {
         {/* CTA Buttons below Showcase */}
         <div className="mt-4 text-center" data-aos="fade-up" data-aos-delay="300">
           <div className="d-inline-flex flex-wrap align-items-center justify-content-center gap-3">
-            <a href="#download" className="btn-chirpii-primary">
+            <a href="#download" className="btn-tvk-primary">
               <i className="bi bi-google-play me-1"></i> Get on Google Play
             </a>
-            <a href="#download" className="btn-chirpii-outline">
+            <a href="#download" className="btn-tvk-outline">
               <i className="bi bi-apple me-1"></i> Download on App Store
             </a>
           </div>

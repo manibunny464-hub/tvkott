@@ -10,7 +10,7 @@ export async function requireAuth(request, { allowLegacyHeaders = false } = {}) 
     token = authHeader.slice(7);
   } else {
     token = (allowLegacyHeaders && (request.headers.get('x-auth-token') || request.headers.get('token'))) ||
-      request.cookies.get('token')?.value || request.cookies.get('chirpii_admin_session')?.value;
+      request.cookies.get('token')?.value || request.cookies.get('tvk_admin_session')?.value;
   }
 
   if (!token) {

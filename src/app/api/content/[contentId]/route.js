@@ -81,7 +81,7 @@ function resolveUser(request) {
 
     // 3. Check Cookies
     if (!token) {
-      token = request.cookies.get('token')?.value || request.cookies.get('chirpii_admin_session')?.value;
+      token = request.cookies.get('token')?.value || request.cookies.get('tvk_admin_session')?.value;
     }
 
     // 4. Check Query Parameter

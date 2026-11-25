@@ -108,7 +108,7 @@ async function translateViaMyMemory(text, targetIso) {
   const res = await fetch(url, {
     headers: {
       "Accept": "application/json",
-      "User-Agent": "ChirpiiOTT/1.0",
+      "User-Agent": "TVKOTT/1.0",
     },
     signal: AbortSignal.timeout(6000),
   });

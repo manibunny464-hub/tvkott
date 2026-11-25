@@ -7287,7 +7287,7 @@ function CmsView({ data, loading, refresh, notify }) {
                     onChange={(e) =>
                       setHelpForm({ ...helpForm, email: e.target.value })
                     }
-                    placeholder="support@chirpii.com"
+                    placeholder="support@example.com"
                   />
                 </div>
                 <div>

@@ -1,7 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { NextResponse } from 'next/server';
-import crypto from 'crypto';
 import dbConnect from '@/lib/db';
 import AdminUser from '@/models/AdminUser';
 import Role from '@/models/Role';
@@ -11,14 +10,7 @@ import { signToken, verifyToken } from '@/lib/jwt';
 
 const loginAttempts = new Map();
 
-export function hashPassword(password) {
-  return crypto.createHash('sha256').update(password).digest('hex');
-}
-
-export function comparePassword(password, hash) {
-  const inputHash = hashPassword(password);
-  return crypto.timingSafeEqual(Buffer.from(inputHash), Buffer.from(hash));
-}
+export { hashPassword, comparePassword } from './passwords.mjs';
 
 function getClientKey(request) {
   return (
@@ -63,7 +55,7 @@ export function getConfiguredAdmin() {
     id: 'env-super-admin',
     email: email.toLowerCase(),
     password, // Raw password from env
-    name: process.env.ADMIN_NAME || 'Chirpii Admin',
+    name: process.env.ADMIN_NAME || 'TVK OTT Admin',
     role: process.env.ADMIN_ROLE || 'super_admin',
   };
 }

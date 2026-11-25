@@ -131,7 +131,7 @@ function escapeRegex(string) {
         id: sub._id,
         userId: uId,
         userName: sub.userId?.name || 'Viewer',
-        email: sub.userId?.email || `${sub.userId?.phone || 'viewer'}@phone.chirpii`,
+        email: sub.userId?.email || `${sub.userId?.phone || 'viewer'}@phone.tvk`,
         phone: sub.userId?.phone || '',
         planId: pId,
         planName: sub.planId?.name || 'Subscription Plan',
@@ -149,7 +149,7 @@ function escapeRegex(string) {
       return new Response(toCsv(formattedSubscribers), {
         headers: {
           'content-type': 'text/csv; charset=utf-8',
-          'content-disposition': 'attachment; filename="chirpii-subscribers.csv"',
+          'content-disposition': 'attachment; filename="tvk-subscribers.csv"',
         },
       });
     }

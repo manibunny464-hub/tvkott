@@ -136,7 +136,7 @@ export default function FeaturedStories() {
       genre: "Sci-Fi / Mystery",
       episodes: "12 Episodes",
       duration: "3 mins/ep",
-      badge: "Chirpii Original",
+      badge: "TVK OTT Original",
       badgeColor: "#09C5D6",
       image: "/images/trend_ninth_minute_1793613766157.jpg",
     },
@@ -271,7 +271,7 @@ export default function FeaturedStories() {
             {stories.map((story, index) => (
               <SwiperSlide key={story.id}>
                 <div
-                  className="chirpii-card h-100 position-relative group"
+                  className="tvk-card h-100 position-relative group"
                   data-aos="zoom-in"
                   data-aos-delay={100 + (index % 4) * 100}
                   style={{

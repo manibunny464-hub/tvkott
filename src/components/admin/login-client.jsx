@@ -89,7 +89,7 @@ export default function LoginClient() {
             {/* Email Field */}
             <div>
               <label className="block text-xs font-semibold tracking-wider uppercase text-white/70 mb-2">
-                Admin Email
+                {process.env.NODE_ENV === "development" ? "Admin Username or Email" : "Admin Email"}
               </label>
               <div className="relative group">
                 <Mail
@@ -97,7 +97,7 @@ export default function LoginClient() {
                   size={18}
                 />
                 <input
-                  type="email"
+                  type={process.env.NODE_ENV === "development" ? "text" : "email"}
                   required
                   autoComplete="email"
                   value={form.email}

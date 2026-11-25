@@ -36,7 +36,7 @@ function resolveUser(request) {
     if (!token) {
       token =
         request.cookies.get("token")?.value ||
-        request.cookies.get("chirpii_admin_session")?.value;
+        request.cookies.get("tvk_admin_session")?.value;
       if (token) {
         console.log("resolveUser [Cookie]: Found token in cookies");
       }
