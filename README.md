@@ -1,45 +1,48 @@
-# TVK OTT starter
+# TVK OTT
 
-Starting codebase for TVK OTT. Full OTT implementation is pending.
+TVK OTT is a Next.js application with a content administration panel and mobile catalog APIs. It uses MongoDB for catalog and account data, and Amazon S3 for artwork, trailers, and video files.
 
-Read docs/TVK_STARTER.md, docs/TVK_OTT_Scope_of_Work.md and docs/TVK_OTT_Backend_Blueprint.md before implementation. Configure separate development services with .env.example.
+## Admin workflows
 
-## Inherited project notes
+- **Movies and Series** have dedicated library, preview, and edit pages. Admins can save localized titles, descriptions, posters, and banners independently.
+- **Video Assets** supports manual uploads by language and quality. The Movie Studio includes resumable uploads, playback previews, subtitles, and per-language publishing and availability.
+- **Trailers and Banners** can be managed separately. Trailers are organized by movie language or series season and language. Home banners can link to movies or series and have a configurable display order.
+- **Catalog operations** include Cast & Crew, curated More Like This selections, staff permissions, and audit history.
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+## Run locally
 
-## Getting Started
+1. Install Node.js 20.9 or newer and have a development MongoDB instance available.
+2. Install dependencies and copy the environment template.
 
+   ```powershell
+   npm ci
+   Copy-Item .env.example .env.local
+   ```
 
-First, run the development server:
+3. Set `MONGODB_URI` to a development database and generate a unique `JWT_SECRET`. Add S3 settings if you need to test media uploads.
+4. Run `npm run dev` and open the [app](http://localhost:3000) or [Admin Login](http://localhost:3000/admin/login).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+An existing admin signs in using the account stored in MongoDB. To bootstrap a new development database, set `ADMIN_EMAIL` and `ADMIN_PASSWORD` before the first sign-in. The first successful sign-in creates the account. You can remove the bootstrap variables afterward.
+
+## Deployment configuration
+
+| Variables | Purpose |
+| --- | --- |
+| `MONGODB_URI`, `JWT_SECRET` | Database connection and login sessions |
+| `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME` | Artwork and video storage |
+| `NEXT_PUBLIC_PLAY_STORE_URL`, `NEXT_PUBLIC_SUPPORT_EMAIL` | Optional landing and app-sharing settings |
+
+Set secrets directly in the deployment environment. [.env.example](.env.example) contains the configuration template. Keep `.env.local` out of Git. A hosted deployment needs a MongoDB endpoint it can reach. Use a separate staging database and an approved S3 test location for upload and playback checks.
+
+If you are upgrading an existing database with the legacy season-trailer index, run [the index migration](scripts/migrate-season-trailer-index.mjs) against that database before saving multiple trailer languages for a season.
+
+## Verification
+
+```powershell
+npm run build
+node scripts/tests/test-banner-visibility.mjs
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+With the local app and MongoDB running, use `node --env-file=.env.local scripts/tests/test-catalog-access.mjs` to verify draft visibility, playback access, and trailer permissions.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The [scope of work](docs/TVK_OTT_Scope_of_Work.md) and [backend blueprint](docs/TVK_OTT_Backend_Blueprint.md) describe the broader project requirements.
