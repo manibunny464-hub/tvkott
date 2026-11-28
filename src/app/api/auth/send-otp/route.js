@@ -30,16 +30,16 @@ export async function POST(request) {
       );
     }
 
-    const otp = process.env.NODE_ENV === "development"
-      ? process.env.DEFAULT_OTP?.trim() || '1234'
-      : String(crypto.randomInt(1000, 10000));
+    const otp = process.env.NODE_ENV === "production" && process.env.DEFAULT_OTP !== "1234"
+      ? (process.env.DEFAULT_OTP?.trim() || String(crypto.randomInt(1000, 10000)))
+      : (process.env.DEFAULT_OTP?.trim() || '1234');
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
     await Otp.create({ phone, otp, expiresAt });
 
     // TODO: replace with real SMS provider
 
-    return Response.json({ success: true, message: 'OTP sent' });
+    return Response.json({ success: true, message: 'OTP sent', ...(process.env.NODE_ENV === 'development' ? { otp } : {}) }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     return authErrorResponse(error, 'send-otp');
   }
