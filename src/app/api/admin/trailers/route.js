@@ -1,4 +1,5 @@
 import { verifiedTrailerUrl } from '@/lib/admin/media';
+import { interactionDefaults } from '@/lib/trailer-interactions';
 import mongoose from 'mongoose';
 import { isLocalizationReady } from '@/lib/localization-readiness';
 import { getMasterSettings } from '@/lib/admin/data';
@@ -55,7 +56,11 @@ export async function POST(request) {
 
   const body = await request.json().catch(() => null);
   if (!body) return failure('Invalid trailer details.', 400);
-  const { seriesId, seasonId, language, videoKey, duration, fileSize, mimeType } = body;
+  const { seriesId, seasonId, language, videoKey, duration, fileSize, mimeType, engagement } = body;
+  const engagementFields = Object.keys(interactionDefaults);
+  if (engagement !== undefined && !engagementFields.every(key => typeof engagement?.[key] === 'boolean')) {
+    return failure('Invalid trailer engagement settings.', 400);
+  }
   if (!mongoose.isObjectIdOrHexString(seriesId) || !mongoose.isObjectIdOrHexString(seasonId) || typeof language !== 'string' || !language) {
     return failure('Choose a series, season, and language.', 400);
   }
@@ -85,7 +90,8 @@ export async function POST(request) {
   try {
     const trailer = await SeasonTrailer.findOneAndUpdate(
       { seasonId, language },
-      { $set: { seriesId, videoUrl, videoKey, duration, fileSize, mimeType, isActive: true } },
+      { $set: { seriesId, videoUrl, videoKey, duration, fileSize, mimeType, isActive: true },
+        ...(engagement ? { $setOnInsert: { engagement: Object.fromEntries(engagementFields.map(key => [key, engagement[key]])) } } : {}) },
       { new: true, upsert: true, runValidators: true }
     );
     return Response.json({ success: true, trailer });

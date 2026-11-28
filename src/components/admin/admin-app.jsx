@@ -17008,12 +17008,25 @@ function MovieTrailersView({ notify }) {
   </PageShell>;
 }
 
+const trailerEngagementFields = { likesEnabled: "Allow likes", commentsEnabled: "Show comments", showLikeCount: "Show like count" };
+
+function TrailerEngagementFields({ state, onChange, disabled }) {
+  return <div className="flex flex-wrap gap-4">
+    {Object.entries(trailerEngagementFields).map(([field, label]) => <label className="flex items-center gap-2" key={field}>
+      <input type="checkbox" disabled={disabled || (field === "showLikeCount" && !state.likesEnabled)}
+        checked={field === "showLikeCount" ? state.likesEnabled && state[field] : state[field]}
+        onChange={event => onChange({ ...state, [field]: event.target.checked })} />
+      {label}
+    </label>)}
+  </div>;
+}
+
 function TrailerEngagement({ id, language }) {
   const endpoint = `/api/admin/trailers/${id}/engagement${language ? `?language=${encodeURIComponent(language)}` : ""}`;
   const [state, setState] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const fields = { likesEnabled: "Enable likes", commentsEnabled: "Enable comments", showLikeCount: "Show like count" };
+
 
   async function load(cursor, signal) {
     const url = new URL(endpoint, window.location.origin);
@@ -17044,16 +17057,12 @@ function TrailerEngagement({ id, language }) {
   }
 
   return <section className="space-y-3 border-t border-[var(--admin-border)] pt-4">
-    <h4 className="font-semibold">Trailer engagement</h4>
+    <h4 className="font-semibold">Trailer settings</h4>
     {error && <p role="alert" className="tvk-validation text-sm">{error}</p>}
+    {!state && !error && <p role="status" className="text-sm">Loading settings…</p>}
     {state && <>
-      <div className="flex flex-wrap gap-4">
-        {Object.entries(fields).map(([field, label]) => <label className="flex items-center gap-2" key={field}>
-          <input type="checkbox" disabled={busy} checked={state[field]} onChange={event => setState({ ...state, [field]: event.target.checked })} />
-          {label}
-        </label>)}
-      </div>
-      <Button type="button" disabled={busy} onClick={() => run(() => save(Object.fromEntries(Object.keys(fields).map(field => [field, state[field]]))))}>Save engagement settings</Button>
+      <TrailerEngagementFields state={state} onChange={setState} disabled={busy} />
+      <Button type="button" disabled={busy} onClick={() => run(() => save(Object.fromEntries(Object.keys(trailerEngagementFields).map(field => [field, state[field]]))))}>Save trailer settings</Button>
       {state.comments.map(comment => <div key={comment._id} className="space-y-2 rounded-lg border border-[var(--admin-border)] p-3">
         <p className="break-words">{comment.text}</p>
         <div className="flex gap-2">
@@ -17128,7 +17137,7 @@ function MovieTrailerEditor({ movie, row, onSaved, notify }) {
       {file && <Button type="button" variant="outline" disabled={saving} onClick={clearFile}>Remove selected file</Button>}
       {url && <Button type="button" variant="outline" disabled={saving} onClick={() => save(true)}>Remove saved trailer</Button>}
     </div>
-    {url && <TrailerEngagement id={movie._id} language={row.language} />}
+    <TrailerEngagement id={movie._id} language={row.language} />
     {movie.isActive && <p className="text-sm text-[var(--admin-muted)]">Publish this language in Movie Studio to apply trailer changes to the live movie.</p>}
   </section>;
 }
@@ -17152,6 +17161,7 @@ function SeasonLanguageTrailers({ seriesId, seasons, language, name, disabled, n
 
 function SeasonTrailerEditor({ seriesId, seasonId, language, name, disabled, notify }) {
   const [trailer, setTrailer] = useState(null);
+  const [engagement, setEngagement] = useState({ likesEnabled: true, commentsEnabled: false, showLikeCount: true });
   const [pending, setPending] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -17183,7 +17193,8 @@ function SeasonTrailerEditor({ seriesId, seasonId, language, name, disabled, not
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ seriesId, seasonId, language, videoKey: pending.key,
-            duration: pending.duration, fileSize: pending.size, mimeType: pending.type }),
+            duration: pending.duration, fileSize: pending.size, mimeType: pending.type,
+            ...(!trailer ? { engagement } : {}) }),
         })));
       if (!result.success) throw new Error(result.message || "Could not save the trailer.");
       setTrailer(remove ? null : result.trailer);
@@ -17221,7 +17232,11 @@ function SeasonTrailerEditor({ seriesId, seasonId, language, name, disabled, not
         onClick={() => { setPending(null); setUploadVersion((version) => version + 1); }}>Remove selected file</Button>}
       {trailer && <Button type="button" variant="outline" disabled={disabled || saving || uploading} onClick={() => change(true)}>Remove saved trailer</Button>}
     </div>
-    {trailer && <TrailerEngagement id={trailer._id} />}
+    {trailer ? <TrailerEngagement id={trailer._id} /> : <section className="space-y-3 border-t border-[var(--admin-border)] pt-4">
+      <h4 className="font-semibold">Trailer settings</h4>
+      <TrailerEngagementFields state={engagement} onChange={setEngagement} disabled={disabled || saving} />
+      <p className="text-sm text-[var(--admin-muted)]">These settings are saved with the trailer.</p>
+    </section>}
   </div>;
 }
 

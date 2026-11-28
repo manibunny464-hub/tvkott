@@ -18,6 +18,7 @@ const SeasonTrailerSchema = new mongoose.Schema({
   duration: { type: Number, required: false, default: 0 },
   fileSize: { type: Number, required: false },
   mimeType: { type: String, required: false },
+  engagement: { likesEnabled: Boolean, commentsEnabled: Boolean, showLikeCount: Boolean },
   likesCount: { type: Number, default: 0 },
   isActive: { type: Boolean, default: true },
 }, {

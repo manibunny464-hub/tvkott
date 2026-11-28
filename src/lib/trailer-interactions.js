@@ -16,7 +16,7 @@ export async function resolveTrailer(trailerId, language, { admin = false } = {}
     const variants = admin ? movie?.localizations : movie?.publishedMovie ?? movie?.localizations;
     const variant = variants?.find(item => item.language === language);
     const url = variant?.trailerUrl ?? ((!movie?.publishedMovie || admin) && movie?.primaryLanguage === language ? movie.trailerUrl : null);
-    if (!movie || !url || (!admin && movie.inactiveMovieLanguages?.includes(language))) return null;
+    if (!movie || (admin ? !variant && movie.primaryLanguage !== language : !url || movie.inactiveMovieLanguages?.includes(language))) return null;
     return `movie:${id}:${language}`;
   }
 
@@ -28,7 +28,10 @@ export async function resolveTrailer(trailerId, language, { admin = false } = {}
 
 export async function getTrailerSettings(trailerKey) {
   const row = await Interaction.findOne({ trailerKey, kind: 'settings' }).lean();
-  return Object.fromEntries(Object.entries(interactionDefaults).map(([key, value]) => [key, row?.[key] ?? value]));
+  const initial = !row && trailerKey.startsWith('season:')
+    ? (await SeasonTrailer.findById(trailerKey.slice(7)).select('engagement').lean())?.engagement
+    : null;
+  return Object.fromEntries(Object.entries(interactionDefaults).map(([key, value]) => [key, row?.[key] ?? initial?.[key] ?? value]));
 }
 
 export async function getTrailerEngagement(trailerKey, userId) {

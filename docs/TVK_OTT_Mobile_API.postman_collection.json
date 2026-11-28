@@ -97,7 +97,7 @@
     },
     {
       "key": "baseUrl",
-      "value": "http://localhost:3000",
+      "value": "https://tvkott.vercel.app",
       "type": "string"
     },
     {
