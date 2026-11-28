@@ -1,16 +1,17 @@
+import { after } from 'next/server';
 import dbConnect from '@/lib/db';
 import { signToken } from '@/lib/jwt';
 import Otp from '@/models/Otp';
 import User from '@/models/User';
 import { authErrorResponse } from '@/lib/authErrors';
-import { randomUUID } from 'crypto';
+import { createHash, randomBytes, randomUUID } from 'crypto';
 
 export async function POST(request) {
   try {
     const body = await request.json();
     const phone = String(body?.phone ?? '').trim();
     const otp = String(body?.otp ?? '').trim();
-    const deviceId = typeof body?.deviceId === 'string' ? body.deviceId.trim() : '';
+    const deviceId = typeof body?.deviceId === 'string' && body.deviceId.length <= 128 && !body.deviceId.trim().startsWith('tv:') ? body.deviceId.trim() : '';
 
     if (!process.env.JWT_SECRET) {
       return Response.json({ success: false, code: 'AUTH_CONFIGURATION_ERROR',
@@ -70,7 +71,7 @@ export async function POST(request) {
       );
     }
 
-    let user = await User.findOne({ phone }).select('_id phone name contentLanguages');
+    let user = await User.findOne({ phone }).select('_id phone name contentLanguages activeDevices.deviceId');
     let isNewUser = false;
 
     if (!user) {
@@ -79,27 +80,12 @@ export async function POST(request) {
         isNewUser = true;
       } catch (error) {
         if (error.code !== 11000) throw error;
-        user = await User.findOne({ phone }).select('_id phone name contentLanguages');
+        user = await User.findOne({ phone }).select('_id phone name contentLanguages activeDevices.deviceId');
         if (!user) throw error;
       }
     }
 
-    // Register active device session safely
-    const finalDeviceId = deviceId || randomUUID();
-    const { enforceDeviceSession } = await import('@/lib/subscription/entitlementService');
-    const session = await enforceDeviceSession(user._id, finalDeviceId, request.headers.get('user-agent') || 'Mobile Device', 10);
-    if (!session.success) {
-      return Response.json({ success: false, message: 'Unable to register login session. Please retry.' }, { status: 503 });
-    }
-
-    const token = signToken(
-      { userId: user._id.toString(), phone: user.phone, deviceId: finalDeviceId },
-      { expiresIn: '30d' }
-    );
-
-    const hasSelectedLanguages = Array.isArray(user.contentLanguages) && user.contentLanguages.length > 0;
-
-    // Consume only after token/session preparation succeeds; concurrent replays lose atomically.
+    // Claim the OTP before changing device sessions.
     const consumed = await Otp.updateOne({
       _id: activeOtp._id, isUsed: false, attempts: { $not: { $gte: 5 } }, expiresAt: { $gt: new Date() },
     }, { $set: { isUsed: true } });
@@ -107,9 +93,45 @@ export async function POST(request) {
       return Response.json({ success: false, message: 'Invalid or expired OTP' }, { status: 400 });
     }
 
+    // Register active device session safely
+    const finalDeviceId = deviceId || randomUUID();
+    const { enforceDeviceSession, getUserEntitlements } = await import('@/lib/subscription/entitlementService');
+    const { features } = await getUserEntitlements(user._id);
+    const sessionId = randomUUID();
+    const refreshToken = randomBytes(32).toString('base64url');
+    const refreshHash = createHash('sha256').update(refreshToken).digest('hex');
+    const refreshExpiresAt = new Date(Date.now() + 30 * 86400000);
+    const session = await enforceDeviceSession(user._id, finalDeviceId, request.headers.get('user-agent') || 'Mobile Device', features.simultaneousDevices, sessionId, { refreshHash, refreshExpiresAt });
+    if (!session.success) {
+      return Response.json({ success: false, message: 'Unable to register login session. Please retry.' }, { status: 503 });
+    }
+
+    if (!isNewUser && !user.activeDevices?.some(device => device.deviceId === finalDeviceId)) {
+      after(async () => {
+        try {
+          const { default: Notification } = await import('@/models/Notification');
+          const { sendPushNotification } = await import('@/lib/notifications/pushService');
+          const title = 'New device sign-in';
+          const message = 'Your TVK OTT account was signed in on a new device.';
+          await Notification.create({ userId: user._id, title, message, type: 'system' });
+          await sendPushNotification({ userIds: [String(user._id)], title, body: message, data: { type: 'system' } });
+        } catch (error) {
+          console.error('[Device sign-in] Notification failed:', error.code || error.name);
+        }
+      });
+    }
+
+    const token = signToken(
+      { userId: user._id.toString(), phone: user.phone, deviceId: finalDeviceId, sessionId },
+      { expiresIn: body?.supportsTokenRefresh === true ? '15m' : '30d' }
+    );
+
+    const hasSelectedLanguages = Array.isArray(user.contentLanguages) && user.contentLanguages.length > 0;
+
     return Response.json({
       success: true,
       token,
+      refreshToken,
       isNewUser,
       hasSelectedLanguages,
       user: {
@@ -117,7 +139,7 @@ export async function POST(request) {
         phone: user.phone,
         name: user.name ?? null,
       },
-    });
+    }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     return authErrorResponse(error, 'verify-otp');
   }

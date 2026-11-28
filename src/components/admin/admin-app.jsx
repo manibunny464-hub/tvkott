@@ -188,13 +188,6 @@ const navItems = [
     permission: "trending",
   },
   //   {
-  //     href: "/admin/coming-soon-admin",
-  //     view: "coming-soon-admin",
-  //     label: "Coming Soon",
-  //     icon: Calendar,
-  //     permission: "coming-soon",
-  //   },
-  //   {
   //     href: "/admin/trending-admin",
   //     view: "trending-admin",
   //     label: "Trending",
@@ -303,7 +296,6 @@ const pageTitles = {
   banners: "Banner Management",
   artists: "Cast & Crew",
   audit: "Audit Log",
-  "coming-soon-admin": "Coming Soon Management",
   "trending-admin": "Trending Management",
   blockbusters: "Blockbuster Management",
   cms: "CMS Pages",
@@ -430,8 +422,6 @@ function getViewApiUrl(view, seriesId = null) {
       return "/api/admin/roles";
     case "featured":
       return "/api/admin/featured";
-    case "coming-soon-admin":
-      return "/api/admin/coming-soon?page=1";
     case "trending-admin":
       return "/api/admin/trending?page=1";
     case "blockbusters":
@@ -1964,7 +1954,7 @@ function DashboardView({ data, loading, admin, refresh }) {
                           </p>
                         </div>
                         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${item.status === "published" ? "bg-emerald-500/15 text-emerald-700 tvk-dashboard-published" : "bg-[var(--admin-soft)] text-[var(--admin-muted)]"}`}>
-                          {{ published: "Published", draft: "Draft", coming_soon: "Coming soon" }[item.status]}
+                          {{ published: "Published", draft: "Draft" }[item.status]}
                         </span>
                       </li>
                     );
@@ -2393,6 +2383,8 @@ function PlansTab({ data, loading, refresh, notify }) {
     tagline: "",
     displayOrder: 0,
     autoRenew: true,
+    devices: 1,
+    tvAccess: false,
   };
   const [form, setForm] = useState(defaultForm);
 
@@ -2413,6 +2405,8 @@ function PlansTab({ data, loading, refresh, notify }) {
       tagline: plan.tagline || "",
       displayOrder: plan.displayOrder ?? 0,
       autoRenew: plan.autoRenew ?? true,
+      devices: plan.features?.simultaneousDevices ?? 1,
+      tvAccess: plan.features?.tvAccess === true,
     });
     setIsOpen(true);
   }
@@ -2429,6 +2423,7 @@ function PlansTab({ data, loading, refresh, notify }) {
         tagline: form.tagline || "",
         displayOrder: Number(form.displayOrder || 0),
         autoRenew: Boolean(form.autoRenew),
+        features: { simultaneousDevices: Number(form.devices), tvAccess: form.tvAccess },
       };
       if (editingPlan) {
         await apiFetch("/api/admin/plans", {
@@ -2623,7 +2618,15 @@ function PlansTab({ data, loading, refresh, notify }) {
               </div>
 
               <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-soft)]/50">
-                <div>
+                <label className="grid gap-1">Signed-in devices
+                <input className="admin-input" type="number" min="1" max="10" required value={form.devices}
+                  onChange={(e) => setForm({ ...form, devices: e.target.value })} />
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={form.tvAccess} onChange={(e) => setForm({ ...form, tvAccess: e.target.checked })} />
+                Allow TV access
+              </label>
+              <div>
                   <p className="text-xs font-semibold text-[var(--admin-foreground)]">Auto-renew Subscriptions</p>
                   <p className="text-[11px] text-[var(--admin-muted)]">Recurring billing via Razorpay</p>
                 </div>
@@ -5551,7 +5554,6 @@ export default function AdminApp({
   const [seriesFilters, setSeriesFilters] = useState({ search: "", page: 1 });
   const [seasonFilters, setSeasonFilters] = useState({ page: 1 });
   const [episodeFilters, setEpisodeFilters] = useState({ page: 1 });
-  const [comingSoonFilters, setComingSoonFilters] = useState({ page: 1 });
   const [trailerFilters, setTrailerFilters] = useState({ page: 1 });
   const [bannerFilters, setBannerFilters] = useState({ page: 1 });
   const [trendingFilters, setTrendingFilters] = useState({ page: 1 });
@@ -5766,12 +5768,12 @@ export default function AdminApp({
       url = "/api/admin/series?limit=100";
     } else if (initialView === "bulk-episodes") {
       url = "/api/admin/series?limit=100";
+    } else if (initialView === "tv-settings") {
+      url = "/api/admin/tv-settings";
     } else if (initialView === "banner-editor") {
       url = bannerId ? `/api/admin/banners/${bannerId}` : "/api/admin/banners?limit=1";
     } else if (initialView === "banners") {
       url = `/api/admin/banners?page=${bannerFilters.page}`;
-    } else if (initialView === "coming-soon-admin") {
-      url = `/api/admin/coming-soon?page=${comingSoonFilters.page}`;
     } else if (initialView === "trailers-admin") {
       url = `/api/admin/series?limit=200`;
     } else if (initialView === "trending-admin") {
@@ -5829,7 +5831,6 @@ export default function AdminApp({
     seriesFilters,
     seasonFilters,
     episodeFilters,
-    comingSoonFilters,
     trailerFilters,
     bannerFilters,
     bannerId,
@@ -5848,7 +5849,7 @@ export default function AdminApp({
     if (!sources.size && episode.videoUrl) sources.add(episode.videoUrl);
     return count + sources.size;
   }, 0);
-  const title = initialView === "banner-editor" ? (bannerId ? "Edit Banner" : "Add Banner") : initialView === "movie-preview" ? "Movie View" : initialView === "series-preview" ? "Series View" : initialView === "series-editor" ? (seriesEditorId ? "Edit Series" : "Add Series") : initialView === "movie-editor" ? (movieId ? "Edit Movie" : "Add Movie") : pageTitles[initialView] || "Admin";
+  const title = initialView === "tv-settings" ? "TV Settings" : initialView === "banner-editor" ? (bannerId ? "Edit Banner" : "Add Banner") : initialView === "movie-preview" ? "Movie View" : initialView === "series-preview" ? "Series View" : initialView === "series-editor" ? (seriesEditorId ? "Edit Series" : "Add Series") : initialView === "movie-editor" ? (movieId ? "Edit Movie" : "Add Movie") : pageTitles[initialView] || "Admin";
 
   const activeNavItem = navItems.find((n) => n.view === initialView);
   const isAuthorized = activeNavItem?.uploadOnly
@@ -6174,6 +6175,10 @@ export default function AdminApp({
                 setSelectedSeriesTitle={setSelectedSeriesTitle}
               />
             ) : null}
+            {initialView === "tv-settings" && <PageShell>
+              {loading ? <PinkLoader /> : data?.settings ? <TvSettingsPanel initial={data.settings} notify={notify} />
+                : <EmptyState title="TV settings unavailable" />}
+            </PageShell>}
             {initialView === "banner-editor" && <PageShell>
               {loading ? <PinkLoader /> : bannerId && data?.banner?._id !== bannerId ? <EmptyState title="Banner unavailable" />
                 : <BannerEditor key={bannerId || "new"} banner={bannerId ? data.banner : null}
@@ -6206,25 +6211,6 @@ export default function AdminApp({
                   refreshCounter={reloadKey}
                 />
               </PageShell>
-            ) : null}
-            {initialView === "coming-soon-admin" ? (
-              <ComingSoonView
-                data={data}
-                loading={loading}
-                filters={comingSoonFilters}
-                setFilters={setComingSoonFilters}
-                setPage={(updater) =>
-                  setComingSoonFilters((current) => ({
-                    ...current,
-                    page:
-                      typeof updater === "function"
-                        ? updater(current.page)
-                        : updater,
-                  }))
-                }
-                refresh={refresh}
-                notify={notify}
-              />
             ) : null}
             {initialView === "trailers-admin" ? (
               <TrailerLibrary
@@ -6327,7 +6313,6 @@ const ALL_PERMISSIONS = [
   { key: "bulk-episodes", label: "Bulk Episodes" },
   { key: "trailers", label: "Trailers" },
   { key: "banners", label: "Banners" },
-  { key: "coming-soon", label: "Coming Soon" },
   { key: "trending", label: "Trending" },
   { key: "blockbusters", label: "Blockbusters" },
   { key: "plans", label: "Plans" },
@@ -8034,7 +8019,7 @@ function MoviesView({ admin, data, loading, filters, setFilters, setPage, refres
           {canUploadVideo(admin) && <Button asChild><Link href="/admin/movies/new"><Plus size={17} /> Add Movie</Link></Button>}
         </header>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {[["Total movies", "total", Film], ["Published", "published", Check], ["Draft", "draft", Pencil], ["Coming soon", "comingSoon", Calendar]].map(([label, key, Icon]) => (
+          {[["Total movies", "total", Film], ["Published", "published", Check], ["Draft", "draft", Pencil]].map(([label, key, Icon]) => (
             <Card key={key}><CardContent className="flex items-start justify-between gap-2 p-4">
               <div>{key === "draft" ? <button type="button" className="text-sm font-semibold text-[var(--admin-primary)]" onClick={() => setFilter("status", "draft")}>View Drafts</button> : <p className="text-sm text-[var(--admin-muted)]">{label}</p>}<p className="mt-2 text-2xl font-semibold">{counts?.[key] ?? "—"}</p></div>
               <Icon size={18} className="text-[var(--admin-primary)]" aria-hidden="true" />
@@ -8047,7 +8032,7 @@ function MoviesView({ admin, data, loading, filters, setFilters, setPage, refres
             <option value="">All genres</option>{options.genres.map(({ name }) => <option key={name}>{name}</option>)}
           </Select>
           <Select aria-label="Filter by status" value={filters.status || ""} onChange={(e) => setFilter("status", e.target.value)}>
-            <option value="">All statuses</option><option value="published">Published</option><option value="draft">Draft</option><option value="coming-soon">Coming soon</option>
+            <option value="">All statuses</option><option value="published">Published</option><option value="draft">Draft</option>
           </Select>
           <Select aria-label="Filter by language" value={filters.language || ""} onChange={(e) => setFilter("language", e.target.value)}>
             <option value="">All languages</option>{options.languages.map(({ code, englishName }) => <option key={code} value={englishName}>{englishName}</option>)}
@@ -8075,7 +8060,7 @@ function MoviesView({ admin, data, loading, filters, setFilters, setPage, refres
                     <p className="truncate font-semibold">{movie.title}</p>
                     <PrimaryLanguageTag code={movie.primaryLanguage} />
                     <p className="mt-1 truncate text-sm text-[var(--admin-muted)]">{[movie.releaseYear, ...(movie.genres || [])].filter(Boolean).join(" · ")}</p>
-                    <p className="mt-2 text-xs font-semibold text-[var(--admin-primary)]">{movie.isComingSoon ? "Coming soon" : movie.isActive === false ? "Draft · View draft" : "Published"}</p>
+                    <p className="mt-2 text-xs font-semibold text-[var(--admin-primary)]">{movie.isActive === false ? "Draft · View draft" : "Published"}</p>
                   </div>
                 </Link>
                 {canUploadVideo(admin) && (
@@ -8261,98 +8246,6 @@ const EpisodesSkeletonGrid = () => (
   </div>
 );
 
-function ComingSoonModal({ isOpen, onClose, title, initialDate, onSave }) {
-  const [dateStr, setDateStr] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
-
-  useEffect(() => {
-    if (isOpen) {
-      setDateStr(initialDate ? toLocalDatetimeString(initialDate) : "");
-      setErrorMsg("");
-    }
-  }, [isOpen, initialDate]);
-
-  const handleSave = (e) => {
-    e.preventDefault();
-    if (!dateStr) {
-      setErrorMsg("Please select a date and time");
-      return;
-    }
-    const dateObj = new Date(dateStr);
-    if (isNaN(dateObj.getTime())) {
-      setErrorMsg("Invalid date & time format");
-      return;
-    }
-    onSave(dateObj.toISOString());
-  };
-
-  const handleDateChange = (val) => {
-    setDateStr(val);
-    if (val) {
-      const dateObj = new Date(val);
-      if (!isNaN(dateObj.getTime()) && dateObj.getTime() < Date.now()) {
-        setErrorMsg("Warning: Chosen date/time is in the past (allowed for testing)");
-      } else {
-        setErrorMsg("");
-      }
-    } else {
-      setErrorMsg("");
-    }
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg w-[min(540px,calc(100vw-32px))]">
-        <form onSubmit={handleSave} className="flex flex-col h-full">
-          <DialogHeader>
-            <DialogTitle className="font-display text-xl font-bold text-[var(--admin-foreground)]">
-              {title || "Schedule / Coming Soon"}
-            </DialogTitle>
-            <DialogDescription className="text-sm text-[var(--admin-muted)] mt-1">
-              Select the expected broadcast or release timestamp for this title.
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogBody className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)] block">
-                Release Date & Time <span className="text-red-500">*</span>
-              </label>
-              <Input
-                type="datetime-local"
-                value={dateStr}
-                onChange={(e) => handleDateChange(e.target.value)}
-                className="text-sm h-11"
-              />
-              {errorMsg && (
-                <p className={`text-xs mt-1.5 font-medium ${errorMsg.startsWith("Warning") ? "text-amber-400" : "text-rose-400"}`}>
-                  {errorMsg}
-                </p>
-              )}
-            </div>
-          </DialogBody>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={!dateStr}
-            >
-              Save Schedule
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 const SeriesCard = React.memo(({
   series,
   nowTime,
@@ -8365,12 +8258,12 @@ const SeriesCard = React.memo(({
   const sid = series._id || series.id;
 
   // Status label configuration
-  let statusClass = "coming";
-  let statusText = "Coming soon";
+  let statusClass = "published";
+  let statusText = "Published";
   if (series.isActive === false) {
     statusClass = "draft";
     statusText = "Draft";
-  } else if (!series.isComingSoon) {
+  } else {
     statusClass = "published";
     statusText = "Published";
   }
@@ -8540,23 +8433,6 @@ const SeriesCard = React.memo(({
           <div className="toggle-item-lib">
             <label className="switch-lib">
               <input
-                type="checkbox"
-                checked={!!series.isComingSoon}
-                onChange={(e) =>
-                  onToggleFlag(
-                    series,
-                    "isComingSoon",
-                    e.target.checked,
-                  )
-                }
-              />
-              <span className="slider-lib"></span>
-            </label>
-            <div className="t-label">Soon</div>
-          </div>
-          <div className="toggle-item-lib">
-            <label className="switch-lib">
-              <input
                 className="trend"
                 type="checkbox"
                 checked={!!series.isTrending}
@@ -8591,23 +8467,6 @@ const SeriesCard = React.memo(({
             <div className="t-label">Blockbuster</div>
           </div>
         </div>
-
-        {series.isComingSoon && series.expectedReleaseDate && (
-          <div
-            className="mt-2 text-xs px-2.5 py-1.5 rounded-lg font-semibold bg-[#fff0f6] text-[#ec3f6f] border border-[#ec3f6f]/30 flex items-center gap-1.5 self-start"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Clock size={12} />
-            Coming {new Date(series.expectedReleaseDate).toLocaleString("en-US", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: true,
-            })}
-          </div>
-        )}
 
         <div className="card-foot-lib">
           <div className="updated-lib">
@@ -8654,11 +8513,6 @@ function SeriesView({
   const router = useRouter();
   const [localeDraft, setLocaleDraft] = useState(null);
   const [localSeriesList, setLocalSeriesList] = useState([]);
-  const [comingSoonModal, setComingSoonModal] = useState({
-    isOpen: false,
-    series: null,
-    initialDate: "",
-  });
   const pendingRequests = useRef({});
 
   useEffect(() => {
@@ -8686,7 +8540,7 @@ function SeriesView({
     isTrending: false,
     isBlockbuster: false,
     isFeatured: false,
-    isComingSoon: false,
+
     expectedReleaseDate: "",
     isActive: false,
   });
@@ -8791,7 +8645,7 @@ function SeriesView({
         isTrending: editing.isTrending || false,
         isBlockbuster: editing.isBlockbuster || false,
         isFeatured: editing.isFeatured || false,
-        isComingSoon: editing.isComingSoon || false,
+
         expectedReleaseDate: toLocalDatetimeString(editing.expectedReleaseDate),
         isActive: editing.isActive !== false,
       });
@@ -8817,7 +8671,7 @@ function SeriesView({
         isTrending: false,
         isBlockbuster: false,
         isFeatured: false,
-        isComingSoon: false,
+
         expectedReleaseDate: "",
         isActive: false,
       });
@@ -8944,10 +8798,9 @@ function SeriesView({
   // ── derived values from seriesList ──────────────────────────────────────
   const totalCount = data?.pagination?.total ?? seriesList.length;
   const publishedCount = seriesList.filter(
-    (s) => s.isActive !== false && !s.isComingSoon,
+    (s) => s.isActive !== false,
   ).length;
   const draftCount = seriesList.filter((s) => s.isActive === false).length;
-  const comingSoonCount = seriesList.filter((s) => s.isComingSoon).length;
 
   const allGenres = [
     ...new Set(seriesList.flatMap((s) => s.genres || [])),
@@ -8971,11 +8824,10 @@ function SeriesView({
       return false;
     if (
       statusFilter === "published" &&
-      (s.isActive === false || s.isComingSoon)
+      s.isActive === false
     )
       return false;
     if (statusFilter === "draft" && s.isActive !== false) return false;
-    if (statusFilter === "coming_soon" && !s.isComingSoon) return false;
     if (langFilter !== "all") {
       const langs = Array.isArray(s.language)
         ? s.language
@@ -8988,87 +8840,35 @@ function SeriesView({
   });
 
   function getStatusStyle(series) {
-    if (series.isComingSoon)
-      return { label: "Coming Soon", bg: "bg-violet-600", text: "text-white" };
     if (series.isActive === false)
       return { label: "Draft", bg: "bg-amber-500", text: "text-white" };
     return { label: "Published", bg: "bg-emerald-500", text: "text-white" };
   }
 
-  const updateLocalFlag = (sid, flagKey, newVal, dateValue = undefined) => {
-    setLocalSeriesList((prev) =>
-      prev.map((s) => {
-        if ((s._id || s.id) === sid) {
-          const updated = { ...s, [flagKey]: newVal };
-          if (dateValue !== undefined) {
-            updated.expectedReleaseDate = dateValue;
-          }
-          return updated;
-        }
-        return s;
-      })
-    );
-  };
+  function updateLocalFlag(sid, flagKey, value) {
+    setLocalSeriesList((previous) => previous.map((series) =>
+      (series._id || series.id) === sid ? { ...series, [flagKey]: value } : series));
+  }
 
-  async function handleToggleFlag(series, flagKey, newVal, dateValue = undefined) {
+  async function handleToggleFlag(series, flagKey, value) {
     const sid = series._id || series.id;
     const requestKey = `${sid}_${flagKey}`;
-
     if (pendingRequests.current[requestKey]) return;
 
-    if (flagKey === "isComingSoon" && newVal === true && !dateValue) {
-      setComingSoonModal({
-        isOpen: true,
-        series,
-        initialDate: series.expectedReleaseDate,
-      });
-      return;
-    }
-
-    const originalVal = series[flagKey];
-    const originalDate = series.expectedReleaseDate;
-
-    updateLocalFlag(sid, flagKey, newVal, dateValue);
-
     pendingRequests.current[requestKey] = true;
+    updateLocalFlag(sid, flagKey, value);
     try {
-      const payload = { [flagKey]: newVal };
-      if (flagKey === "isComingSoon") {
-        payload.expectedReleaseDate = dateValue || null;
-      }
-
-      const response = await fetch(`/api/admin/content/${sid}/flags`, {
+      await apiFetch(`/api/admin/content/${sid}/flags`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ [flagKey]: value }),
       });
-
-      const payloadData = await readJsonResponse(response);
-      if (!response.ok || !payloadData.success) {
-        throw new Error(payloadData.message || "Failed to update flag");
-      }
-
-      const updates = { [flagKey]: newVal };
-      if (flagKey === "isComingSoon") {
-        updates.expectedReleaseDate = dateValue || null;
-      }
-      updateCacheItem(sid, updates);
-    } catch (err) {
-      updateLocalFlag(sid, flagKey, originalVal, originalDate);
-      notify("Couldn't update. Try again.", "error");
+      updateCacheItem(sid, { [flagKey]: value });
+    } catch (error) {
+      updateLocalFlag(sid, flagKey, series[flagKey]);
+      notify(error.message || "Could not update the series.", "error");
     } finally {
       delete pendingRequests.current[requestKey];
     }
-  }
-
-  async function handleUpdateReleaseDate(series, newDateStr) {
-    if (!newDateStr) return;
-    const dateObj = new Date(newDateStr);
-    if (isNaN(dateObj.getTime())) {
-      notify("Invalid date/time format.", "error");
-      return;
-    }
-    handleToggleFlag(series, "isComingSoon", true, dateObj.toISOString());
   }
 
   const handlePrefetchSeriesDetail = (series) => {
@@ -9283,23 +9083,7 @@ function SeriesView({
 
             )}
             <div className="flex flex-wrap items-center gap-x-8 gap-y-3 py-3 border-t border-b border-[var(--admin-border)]">
-              {editing && (
-              <div className="flex items-center gap-2">
-                <label className="switch-lib">
-                  <input
-                    type="checkbox"
-                    checked={!!form.isComingSoon}
-                    onChange={(e) =>
-                      handleFormFlagChange("isComingSoon", e.target.checked)
-                    }
-                  />
-                  <span className="slider-lib"></span>
-                </label>
-                <span className="text-sm font-semibold text-[var(--admin-foreground)]">
-                  Coming Soon
-                </span>
-              </div>
-              )}
+
               <div className="flex items-center gap-2">
                 <label className="switch-lib">
                   <input
@@ -9352,22 +9136,6 @@ function SeriesView({
               </div>
             </div>
 
-            {form.isComingSoon && (
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
-                  Expected Release Date & Time
-                </label>
-                <Input
-                  type="datetime-local"
-                  value={form.expectedReleaseDate}
-                  onChange={(e) =>
-                    setForm({ ...form, expectedReleaseDate: e.target.value })
-                  }
-                  required={form.isComingSoon}
-                  min={toLocalDatetimeString(new Date())}
-                />
-              </div>
-            )}
           </fieldset>
         </form>
         {editing && canEdit && <div className="mt-5 flex flex-wrap items-center justify-end gap-2 border-t border-[var(--admin-border)] pt-4">
@@ -9598,17 +9366,6 @@ function SeriesView({
               </div>
             </div>
           </div>
-          <div className="stat-lib soon">
-            <div className="stat-top-lib">
-              <div>
-                <div className="stat-label-lib">Coming soon</div>
-                <div className="stat-value-lib">{comingSoonCount}</div>
-              </div>
-              <div className="stat-icon-lib">
-                <Clock size={18} />
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* ── Toolbar ── */}
@@ -9644,7 +9401,6 @@ function SeriesView({
             <option value="all">All status</option>
             <option value="published">Published</option>
             <option value="draft">Draft</option>
-            <option value="coming_soon">Coming soon</option>
           </select>
           <select
             className="select-lib"
@@ -9729,12 +9485,12 @@ function SeriesView({
                   {filteredList.map((series) => {
                     const sid = series._id || series.id;
 
-                    let statusClass = "coming";
-                    let statusText = "Coming soon";
+                    let statusClass = "published";
+                    let statusText = "Published";
                     if (series.isActive === false) {
                       statusClass = "draft";
                       statusText = "Draft";
-                    } else if (!series.isComingSoon) {
+                    } else {
                       statusClass = "published";
                       statusText = "Published";
                     }
@@ -9788,21 +9544,7 @@ function SeriesView({
                               {statusText}
                             </span>
                             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[10px] text-[var(--admin-muted)] font-semibold mt-1">
-                              <label className="flex items-center gap-1 cursor-pointer select-none">
-                                <input
-                                  type="checkbox"
-                                  checked={!!series.isComingSoon}
-                                  onChange={(e) =>
-                                    handleToggleFlag(
-                                      series,
-                                      "isComingSoon",
-                                      e.target.checked,
-                                    )
-                                  }
-                                  className="rounded border-[var(--admin-border)] text-[var(--admin-accent)] focus:ring-0 w-3 h-3 cursor-pointer"
-                                />
-                                Soon
-                              </label>
+
                               <label className="flex items-center gap-1 cursor-pointer select-none">
                                 <input
                                   type="checkbox"
@@ -9834,19 +9576,6 @@ function SeriesView({
                                 Blockbuster
                               </label>
                             </div>
-                            {series.isComingSoon && series.expectedReleaseDate && (
-                              <span className="text-[10px] text-[#ec3f6f] font-semibold mt-1 flex items-center gap-1">
-                                <Clock size={10} />
-                                {new Date(series.expectedReleaseDate).toLocaleString("en-US", {
-                                  day: "numeric",
-                                  month: "short",
-                                  year: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                  hour12: true,
-                                })}
-                              </span>
-                            )}
                           </div>
                         </td>
                         <td>
@@ -9935,31 +9664,6 @@ function SeriesView({
       </div>
 
 
-      <ComingSoonModal
-        isOpen={comingSoonModal.isOpen}
-        onClose={() =>
-          setComingSoonModal({
-            isOpen: false,
-            series: null,
-            initialDate: "",
-          })
-        }
-        title={
-          comingSoonModal.series
-            ? `Mark "${comingSoonModal.series.title}" as coming soon`
-            : "Mark as coming soon"
-        }
-        initialDate={comingSoonModal.initialDate}
-        onSave={(dateIso) => {
-          const { series } = comingSoonModal;
-          setComingSoonModal({
-            isOpen: false,
-            series: null,
-            initialDate: "",
-          });
-          handleToggleFlag(series, "isComingSoon", true, dateIso);
-        }}
-      />
     </PageShell>
   );
 }
@@ -17304,6 +17008,66 @@ function MovieTrailersView({ notify }) {
   </PageShell>;
 }
 
+function TrailerEngagement({ id, language }) {
+  const endpoint = `/api/admin/trailers/${id}/engagement${language ? `?language=${encodeURIComponent(language)}` : ""}`;
+  const [state, setState] = useState(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const fields = { likesEnabled: "Enable likes", commentsEnabled: "Enable comments", showLikeCount: "Show like count" };
+
+  async function load(cursor, signal) {
+    const url = new URL(endpoint, window.location.origin);
+    if (cursor) url.searchParams.set("before", cursor);
+    const result = await readJsonResponse(await fetch(url, { cache: "no-store", signal }));
+    if (!result.success) throw new Error(result.message);
+    setState(current => cursor ? { ...current, comments: [...current.comments, ...result.comments], nextCursor: result.nextCursor } : result);
+  }
+
+  useEffect(() => {
+    const controller = new AbortController();
+    load(null, controller.signal).catch(err => { if (!controller.signal.aborted) setError(err.message); });
+    return () => controller.abort();
+  }, [endpoint]);
+
+  async function run(work) {
+    setBusy(true);
+    setError("");
+    try { await work(); } catch (err) { setError(err.message); } finally { setBusy(false); }
+  }
+
+  async function save(body) {
+    const result = await readJsonResponse(await fetch(endpoint, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    }));
+    if (!result.success) throw new Error(result.message);
+    await load();
+  }
+
+  return <section className="space-y-3 border-t border-[var(--admin-border)] pt-4">
+    <h4 className="font-semibold">Trailer engagement</h4>
+    {error && <p role="alert" className="tvk-validation text-sm">{error}</p>}
+    {state && <>
+      <div className="flex flex-wrap gap-4">
+        {Object.entries(fields).map(([field, label]) => <label className="flex items-center gap-2" key={field}>
+          <input type="checkbox" disabled={busy} checked={state[field]} onChange={event => setState({ ...state, [field]: event.target.checked })} />
+          {label}
+        </label>)}
+      </div>
+      <Button type="button" disabled={busy} onClick={() => run(() => save(Object.fromEntries(Object.keys(fields).map(field => [field, state[field]]))))}>Save engagement settings</Button>
+      {state.comments.map(comment => <div key={comment._id} className="space-y-2 rounded-lg border border-[var(--admin-border)] p-3">
+        <p className="break-words">{comment.text}</p>
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" disabled={busy} onClick={() => run(() => save({ commentId: comment._id, action: comment.hidden ? "restore" : "hide" }))}>{comment.hidden ? "Restore" : "Hide"}</Button>
+          <Button type="button" variant="outline" disabled={busy} onClick={() => {
+            if (window.confirm("Permanently delete this comment?")) run(() => save({ commentId: comment._id, action: "delete" }));
+          }}>Delete</Button>
+        </div>
+      </div>)}
+      {state.nextCursor && <Button type="button" variant="outline" disabled={busy} onClick={() => run(() => load(state.nextCursor))}>More comments</Button>}
+    </>}
+  </section>;
+}
+
 function MovieTrailerEditor({ movie, row, onSaved, notify }) {
   const [file, setFile] = useState(null);
   const [inputVersion, setInputVersion] = useState(0);
@@ -17364,6 +17128,7 @@ function MovieTrailerEditor({ movie, row, onSaved, notify }) {
       {file && <Button type="button" variant="outline" disabled={saving} onClick={clearFile}>Remove selected file</Button>}
       {url && <Button type="button" variant="outline" disabled={saving} onClick={() => save(true)}>Remove saved trailer</Button>}
     </div>
+    {url && <TrailerEngagement id={movie._id} language={row.language} />}
     {movie.isActive && <p className="text-sm text-[var(--admin-muted)]">Publish this language in Movie Studio to apply trailer changes to the live movie.</p>}
   </section>;
 }
@@ -17456,6 +17221,7 @@ function SeasonTrailerEditor({ seriesId, seasonId, language, name, disabled, not
         onClick={() => { setPending(null); setUploadVersion((version) => version + 1); }}>Remove selected file</Button>}
       {trailer && <Button type="button" variant="outline" disabled={disabled || saving || uploading} onClick={() => change(true)}>Remove saved trailer</Button>}
     </div>
+    {trailer && <TrailerEngagement id={trailer._id} />}
   </div>;
 }
 
@@ -17508,6 +17274,44 @@ function TrailersView({ data, notify, selectedSeriesId, setSelectedSeriesId }) {
       </CardContent></Card>
     )}
   </PageShell>;
+}
+
+function TvSettingsPanel({ initial, notify }) {
+  const [settings, setSettings] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  async function save(event) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const result = await apiFetch("/api/admin/tv-settings", { method: "PUT", body: JSON.stringify(settings) });
+      setSettings(result.settings);
+      notify("TV settings saved");
+    } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  }
+  return <form onSubmit={save} className="max-w-2xl space-y-5">
+    <h1 className="text-2xl font-semibold">TV Settings</h1>
+    <Card><CardContent className="space-y-4 p-5">
+      <label className="flex items-center gap-2 text-sm font-semibold">
+        <input type="checkbox" checked={settings.enabled} disabled={busy}
+          onChange={(event) => setSettings({ ...settings, enabled: event.target.checked })} /> Enable TV pairing and sessions
+      </label>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="grid gap-1 text-sm">Pairing code lifetime (minutes)
+          <Input type="number" min={2} max={15} required value={settings.pairingMinutes} disabled={busy}
+            onChange={(event) => setSettings({ ...settings, pairingMinutes: Number(event.target.value) })} />
+        </label>
+        <label className="grid gap-1 text-sm">TV session lifetime (days)
+          <Input type="number" min={1} max={30} required value={settings.sessionDays} disabled={busy}
+            onChange={(event) => setSettings({ ...settings, sessionDays: Number(event.target.value) })} />
+        </label>
+      </div>
+      {error && <p role="alert" className="tvk-validation text-sm">{error}</p>}
+      <Button type="submit" disabled={busy}>{busy ? "Saving…" : "Save TV Settings"}</Button>
+    </CardContent></Card>
+  </form>;
 }
 
 function BannerEditor({ banner, nextOrder, notify }) {
@@ -17685,366 +17489,6 @@ function BannersView({ admin, data, loading, setPage, refresh, notify }) {
     )}
     {!loading && data?.pagination?.totalPages > 1 && <Pagination pagination={data.pagination} setPage={setPage} />}
   </PageShell>;
-}
-
-function ComingSoonView({
-  data,
-  loading,
-  filters,
-  setFilters,
-  setPage,
-  refresh,
-  notify,
-}) {
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    expectedReleaseDate: "",
-    linkedContentId: "",
-    isActive: true,
-  });
-  const [posterFile, setPosterFile] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  const comingSoonItems = data?.comingSoon || [];
-
-  useEffect(() => {
-    if (editing) {
-      setForm({
-        title: editing.title || "",
-        description: editing.description || "",
-        expectedReleaseDate: toLocalDatetimeString(editing.expectedReleaseDate),
-        linkedContentId: editing.linkedContentId || "",
-        isActive: editing.isActive !== false,
-      });
-    } else {
-      setForm({
-        title: "",
-        description: "",
-        expectedReleaseDate: "",
-        linkedContentId: "",
-        isActive: true,
-      });
-    }
-    setPosterFile(null);
-  }, [editing, open]);
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (!form.title) return notify("Title is required", "error");
-    setSubmitting(true);
-
-    try {
-      const fd = new FormData();
-      Object.entries(form).forEach(([key, val]) => {
-        if (key === "expectedReleaseDate" && val) {
-          try {
-            fd.append(key, new Date(val).toISOString());
-          } catch (e) {
-            fd.append(key, val);
-          }
-        } else {
-          fd.append(key, val);
-        }
-      });
-      if (posterFile) fd.append("posterImage", posterFile);
-
-      const url = editing
-        ? `/api/admin/coming-soon/${editing._id || editing.id}`
-        : "/api/admin/coming-soon";
-      const method = editing ? "PUT" : "POST";
-
-      const response = await fetch(url, { method, body: fd });
-      const payload = await readJsonResponse(response);
-      if (!response.ok || !payload.success)
-        throw new Error(payload.message || "Saving failed");
-
-      notify(editing ? "Coming Soon item updated" : "Coming Soon item created");
-      setOpen(false);
-      setEditing(null);
-      refresh();
-    } catch (err) {
-      notify(err.message, "error");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function handleDelete(id) {
-    const confirmed = await showConfirm("Are you sure you want to delete this Coming Soon item?");
-    if (!confirmed) return;
-    try {
-      const response = await fetch(`/api/admin/coming-soon/${id}`, {
-        method: "DELETE",
-      });
-      const payload = await readJsonResponse(response);
-      if (!response.ok || !payload.success)
-        throw new Error(payload.message || "Deletion failed");
-      notify("Coming Soon item deleted");
-      refresh();
-    } catch (err) {
-      notify(err.message, "error");
-    }
-  }
-
-  async function handleNotify(id) {
-    try {
-      const response = await fetch(`/api/admin/coming-soon/${id}/notify`, {
-        method: "POST",
-      });
-      const payload = await readJsonResponse(response);
-      if (!response.ok || !payload.success)
-        throw new Error(payload.message || "Notification broadcast failed");
-      notify(
-        `Notifications sent successfully to ${payload.notifiedCount || 0} registered user(s)!`,
-      );
-    } catch (err) {
-      notify(err.message, "error");
-    }
-  }
-
-  return (
-    <PageShell>
-      <div className="mb-5 flex justify-end">
-        <Button
-          onClick={() => {
-            setEditing(null);
-            setOpen(true);
-          }}
-        >
-          <Plus size={17} /> Add Coming Soon
-        </Button>
-      </div>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl w-[min(760px,calc(100vw-32px))]">
-          <form onSubmit={handleSubmit} className="flex flex-col h-full max-h-[92vh]">
-            <DialogHeader>
-              <DialogTitle className="font-display text-xl font-bold text-[var(--admin-foreground)]">
-                {editing ? "Edit Coming Soon Title" : "Add Coming Soon Title"}
-              </DialogTitle>
-              <DialogDescription className="text-sm text-[var(--admin-muted)] mt-1">
-                Announce upcoming releases, set launch dates, and enable reminder registrations.
-              </DialogDescription>
-            </DialogHeader>
-
-            <DialogBody className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
-                    Title <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    value={form.title}
-                    onChange={(e) => setForm({ ...form, title: e.target.value })}
-                    required
-                    placeholder="e.g. Baahubali: Before the Beginning"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
-                    Expected Release Date & Time <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    type="datetime-local"
-                    value={form.expectedReleaseDate}
-                    onChange={(e) =>
-                      setForm({ ...form, expectedReleaseDate: e.target.value })
-                    }
-                    required
-                    min={toLocalDatetimeString(new Date())}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
-                  Synopsis / Pitch Description
-                </label>
-                <Textarea
-                  value={form.description}
-                  onChange={(e) =>
-                    setForm({ ...form, description: e.target.value })
-                  }
-                  rows={3}
-                  placeholder="Short teaser or synopsis description..."
-                />
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2 pt-1">
-                <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)]">
-                      Linked Content ID (Optional)
-                    </label>
-                    <Input
-                      value={form.linkedContentId}
-                      onChange={(e) =>
-                        setForm({ ...form, linkedContentId: e.target.value })
-                      }
-                      placeholder="Linked Content MongoDB ID"
-                    />
-                  </div>
-                  <div className="p-3.5 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-soft)]/40">
-                    <label className="flex items-center gap-2.5 text-sm font-semibold cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={form.isActive}
-                        onChange={(e) =>
-                          setForm({ ...form, isActive: e.target.checked })
-                        }
-                        className="rounded border-[var(--admin-border)] text-[var(--admin-primary)] focus:ring-[var(--admin-primary)] h-4 w-4"
-                      />
-                      <span>Active / Published</span>
-                    </label>
-                  </div>
-                </div>
-
-                <ImageUploadField
-                  label="Poster Image (2:3)"
-                  currentUrl={editing?.posterUrl}
-                  file={posterFile}
-                  onFileChange={setPosterFile}
-                  aspectRatio="2/3"
-                  disabled={submitting}
-                />
-              </div>
-            </DialogBody>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting ? "Saving..." : "Save Title"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Coming Soon Titles</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <PinkLoader className="min-h-96" />
-          ) : comingSoonItems.length ? (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[700px] text-sm">
-                  <thead>
-                    <tr className="border-b border-[var(--admin-border)] text-left text-xs uppercase tracking-[0.12em] text-[var(--admin-muted)]">
-                      <th className="px-3 py-3">Coming Soon Title</th>
-                      <th className="px-3 py-3">Expected Release</th>
-                      <th className="px-3 py-3">Subscribers</th>
-                      <th className="px-3 py-3">Status</th>
-                      <th className="px-3 py-3">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {comingSoonItems.map((item) => (
-                      <tr
-                        key={item._id || item.id}
-                        className="border-b border-[var(--admin-border)] hover:bg-[var(--admin-soft)]"
-                      >
-                        <td className="px-3 py-4 font-semibold flex items-center gap-3">
-                          <div className="grid h-12 w-9 shrink-0 place-items-center overflow-hidden rounded-[4px] bg-[var(--admin-soft)]">
-                            {item.posterUrl ? (
-                              <img
-                                src={item.posterUrl}
-                                alt=""
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <Calendar
-                                className="text-[var(--admin-primary)]"
-                                size={18}
-                              />
-                            )}
-                          </div>
-                          <div>
-                            <p>{item.title}</p>
-                            <p className="text-xs text-[var(--admin-muted)] max-w-sm truncate">
-                              {item.description}
-                            </p>
-                          </div>
-                        </td>
-                        <td className="px-3 py-4">
-                          {item.expectedReleaseDate
-                            ? formatDate(item.expectedReleaseDate)
-                            : "-"}
-                        </td>
-                        <td className="px-3 py-4 font-bold text-cyan-500">
-                          {item.notifyUsers?.length || 0}
-                        </td>
-                        <td className="px-3 py-4">
-                          <StatusBadge
-                            status={item.isActive ? "Active" : "Suspended"}
-                          />
-                        </td>
-                        <td className="px-3 py-4">
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleNotify(item._id || item.id)}
-                              disabled={!item.notifyUsers?.length}
-                            >
-                              Notify Users
-                            </Button>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreHorizontal size={18} />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent>
-                                <DropdownMenuItem
-                                  onSelect={() => {
-                                    setEditing(item);
-                                    setOpen(true);
-                                  }}
-                                >
-                                  <Pencil size={16} /> Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onSelect={() =>
-                                    handleDelete(item._id || item.id)
-                                  }
-                                >
-                                  <Trash2 size={16} className="text-red-500" />{" "}
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <Pagination pagination={data?.pagination} setPage={setPage} />
-            </>
-          ) : (
-            <EmptyState
-              icon={Calendar}
-              title="No items found"
-              description="Add a coming soon title to build hype."
-            />
-          )}
-        </CardContent>
-      </Card>
-    </PageShell>
-  );
 }
 
 function TrendingView({

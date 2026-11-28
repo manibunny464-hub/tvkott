@@ -14,6 +14,7 @@ export const DEFAULT_PLAN_FEATURES = {
   premiumContentAccess: true,
   offlineDownloads: false,
   videoQuality: '1080p',
+  tvAccess: false,
   simultaneousDevices: 1,
   monthlyDownloadLimit: 0, // 0 = unlimited
 };
@@ -23,6 +24,7 @@ export const DEFAULT_FREE_ENTITLEMENTS = {
   premiumContentAccess: false,
   offlineDownloads: false,
   videoQuality: '480p',
+  tvAccess: false,
   simultaneousDevices: 1,
   monthlyDownloadLimit: 0,
 };
@@ -44,6 +46,8 @@ export function validatePlanFeatures(inputFeatures = {}) {
   if (typeof features.offlineDownloads !== 'boolean') {
     features.offlineDownloads = Boolean(features.offlineDownloads);
   }
+
+  features.tvAccess = features.tvAccess === true;
 
   // 2. Enum: videoQuality
   const normalizedQuality = String(features.videoQuality || '1080p').toUpperCase() === '4K'

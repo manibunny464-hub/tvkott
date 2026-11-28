@@ -15,9 +15,8 @@ export async function GET(request) {
   const { searchParams, page, limit, skip } = parsePagination(request);
   const query = buildContentFilters(searchParams, 'movie');
   const status = searchParams.get('status');
-  if (status === 'coming-soon') query.isComingSoon = true;
-  if (status === 'draft') Object.assign(query, { isActive: false, isComingSoon: { $ne: true } });
-  if (status === 'published') Object.assign(query, { isActive: { $ne: false }, isComingSoon: { $ne: true } });
+  if (status === 'draft') Object.assign(query, { isActive: false });
+  if (status === 'published') Object.assign(query, { isActive: { $ne: false } });
   if (searchParams.get('hasTrailer') === 'true') query.$and = [...(query.$and || []), { $or: [
     { trailerUrl: { $type: 'string', $ne: '' } }, { localizations: { $elemMatch: { trailerUrl: { $type: 'string', $ne: '' } } } },
   ] }];
@@ -35,14 +34,13 @@ export async function GET(request) {
       { $group: {
         _id: null,
         total: { $sum: 1 },
-        comingSoon: { $sum: { $cond: [{ $eq: ['$isComingSoon', true] }, 1, 0] } },
-        draft: { $sum: { $cond: [{ $and: [{ $ne: ['$isComingSoon', true] }, { $eq: ['$isActive', false] }] }, 1, 0] } },
+        draft: { $sum: { $cond: [{ $eq: ['$isActive', false] }, 1, 0] } },
       } },
     ]),
   ]);
   const summary = counts
-    ? { total: counts.total, draft: counts.draft, comingSoon: counts.comingSoon, published: counts.total - counts.draft - counts.comingSoon }
-    : { total: 0, draft: 0, comingSoon: 0, published: 0 };
+    ? { total: counts.total, draft: counts.draft, published: counts.total - counts.draft }
+    : { total: 0, draft: 0, published: 0 };
   return Response.json({ success: true, movies, counts: summary, pagination: paginationMeta(page, limit, total) });
 }
 
@@ -74,6 +72,8 @@ export async function POST(request) {
   applyPrimaryLanguage(data, localized);
   const payload = await buildContentPayload({ data, formData, type: 'movie' });
   applyLanguageDraft(payload, localized);
+  delete payload.isComingSoon;
+  delete payload.expectedReleaseDate;
   if (recommendations.ids) payload.movieIds = recommendations.ids;
   if (!payload.title) {
     return Response.json({ success: false, message: 'Title is required' }, { status: 400 });

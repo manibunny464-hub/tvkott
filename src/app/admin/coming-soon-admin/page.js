@@ -1,5 +1,5 @@
-import AdminRoutePage from '@/components/admin/admin-route';
+import { notFound } from 'next/navigation';
 
-export default function ComingSoonAdminPage() {
-  return <AdminRoutePage view="coming-soon-admin" />;
+export default function ComingSoonPage() {
+  notFound();
 }

@@ -21,7 +21,7 @@ export async function dispatchNewEpisodeNotification(seriesId, episode) {
     const epTitle = episode.title ? `: ${episode.title}` : '';
 
     const notificationTitle = `📺 New Episode Alert: ${seriesTitle}`;
-    const notificationMessage = `Episode ${epNum}${epTitle} is now streaming! Watch now on Chiripi.`;
+    const notificationMessage = `Episode ${epNum}${epTitle} is now streaming! Watch now on TVK OTT.`;
     const deepLink = `/watch/${seriesId}?episodeId=${episode._id}`;
     const imageUrl = episode.thumbnailUrl || series?.posterUrl || '';
 

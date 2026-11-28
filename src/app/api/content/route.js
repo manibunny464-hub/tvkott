@@ -1,3 +1,4 @@
+import { checkTvSession } from '@/lib/tv-pairing';
 import mongoose from 'mongoose';
 import dbConnect from '@/lib/db';
 import Content from '@/models/Content';
@@ -89,6 +90,9 @@ export async function GET(request) {
     // 3. Resolve user and their watchlist (myList)
     let userMyList = [];
     const resolvedUser = resolveUser(request);
+    if (resolvedUser?.tvSessionId && !(await checkTvSession(resolvedUser))) {
+      return Response.json({ success: false, message: 'TV session expired or revoked' }, { status: 401 });
+    }
     let dbUser = null;
     if (resolvedUser && resolvedUser.userId) {
       dbUser = await User.findById(resolvedUser.userId, { myList: 1, contentLanguages: 1 }).lean();
@@ -148,6 +152,9 @@ export async function GET(request) {
     const serializedItems = rawItems.map((item) => {
       const itemIdStr = item._id.toString();
       const addedtolist = userMyList.includes(itemIdStr);
+      delete item.isComingSoon;
+      delete item.expectedReleaseDate;
+      delete item.scheduledPublishAt;
       return {
         ...item,
         addedtolist,

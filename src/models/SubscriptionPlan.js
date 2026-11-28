@@ -79,6 +79,7 @@ const SubscriptionPlanSchema = new mongoose.Schema({
       enum: ['480p', '720p', '1080p', '4K'],
       default: '1080p',
     },
+    tvAccess: { type: Boolean, default: false },
     simultaneousDevices: {
       type: Number,
       default: 1,

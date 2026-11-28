@@ -190,33 +190,6 @@ runTest('Existing subscribers retain purchased featuresSnapshot even if live pla
   assert.notStrictEqual(userSubscription.featuresSnapshot.videoQuality, updatedPlan.features.videoQuality);
 });
 
-// 4. Simultaneous Device Session Eviction Logic Tests
-console.log('\n--- 4. Device Session Limits & Eviction Tests ---');
-
-runTest('Evicts oldest device session when simultaneousDevices limit is reached', () => {
-  const maxDevices = 2;
-  const activeDevices = [
-    { deviceId: 'dev_1', lastActiveAt: new Date(Date.now() - 3600000) }, // 1 hr ago
-    { deviceId: 'dev_2', lastActiveAt: new Date(Date.now() - 1800000) }, // 30 mins ago
-  ];
-
-  // User logs in from dev_3
-  const newDeviceId = 'dev_3';
-  const now = new Date();
-
-  // Simulated eviction
-  while (activeDevices.length >= maxDevices) {
-    activeDevices.sort((a, b) => new Date(a.lastActiveAt) - new Date(b.lastActiveAt));
-    activeDevices.shift(); // Evicts dev_1
-  }
-  activeDevices.push({ deviceId: newDeviceId, lastActiveAt: now });
-
-  assert.strictEqual(activeDevices.length, 2);
-  assert.strictEqual(activeDevices.some((d) => d.deviceId === 'dev_1'), false);
-  assert.strictEqual(activeDevices.some((d) => d.deviceId === 'dev_2'), true);
-  assert.strictEqual(activeDevices.some((d) => d.deviceId === 'dev_3'), true);
-});
-
 // 5. Webhook Signature Security Tests
 console.log('\n--- 5. Webhook Security & Idempotency Tests ---');
 

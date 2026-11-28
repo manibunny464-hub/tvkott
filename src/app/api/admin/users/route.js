@@ -54,7 +54,9 @@ export async function PUT(request) {
       );
     }
 
-    return Response.json({ success: true, user });
+    const publicUser = user?.toObject ? user.toObject() : user;
+    if (publicUser) delete publicUser.activeDevices;
+    return Response.json({ success: true, user: publicUser });
   } catch (error) {
     console.error('[admin/users:PUT] Error:', error);
     return Response.json(
@@ -90,7 +92,7 @@ export async function DELETE(request) {
     }
 
     await dbConnect();
-    const user = await User.findById(id);
+    const user = await User.findById(id).select('-activeDevices');
     if (!user) {
       return Response.json(
         { success: false, message: 'User not found' },

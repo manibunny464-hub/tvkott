@@ -252,7 +252,7 @@ export async function getDashboardData() {
       title: title.title,
       type: title.type,
       artworkUrl: title.posterUrl || title.thumbnailUrl || null,
-      status: title.isActive === false ? 'draft' : title.isComingSoon ? 'coming_soon' : 'published',
+      status: title.isActive === false ? 'draft' : 'published',
       updatedAt: title.updatedAt ?? null,
     })),
     viewsOverTime: dayKeys.map((date) => ({ date, views: viewsByDay.get(date) ?? 0 })),
@@ -619,7 +619,7 @@ export async function getUsersList({ page = 1, limit = 10, search = '', plan = '
 
   const skip = (page - 1) * limit;
   const [items, total] = await Promise.all([
-    User.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    User.find(query).select('-activeDevices').sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
     User.countDocuments(query),
   ]);
 

@@ -1,3 +1,4 @@
+import { checkTvSession } from '@/lib/tv-pairing';
 import { seasonTrailersByLanguage } from '@/lib/season-trailer-selection';
 import { recommendationCards } from '@/lib/more-like-this';
 import mongoose from "mongoose";
@@ -191,6 +192,9 @@ export async function GET(request, { params }) {
 
     let isUserPremium = false;
     const resolvedUser = resolveUser(request);
+    if (resolvedUser?.tvSessionId && !(await checkTvSession(resolvedUser))) {
+      return Response.json({ success: false, message: 'TV session expired or revoked' }, { status: 401 });
+    }
     if (resolvedUser && resolvedUser.userId) {
       const dbUser = await User.findById(resolvedUser.userId, {
         isPremium: 1,

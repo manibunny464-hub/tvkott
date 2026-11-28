@@ -109,6 +109,8 @@ export async function PUT(request, { params }) {
   }
   applyLanguageDraft(payload, localized, existingLocalization);
   delete payload.isActive;
+  delete payload.isComingSoon;
+  delete payload.expectedReleaseDate;
   delete payload.videoSource;
   delete payload.videoUrl;
 

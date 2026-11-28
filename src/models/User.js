@@ -84,6 +84,9 @@ const UserSchema = new mongoose.Schema({
   activeDevices: [{
     deviceId: { type: String, required: true },
     deviceName: { type: String, default: '' },
+    sessionId: String,
+    refreshHash: String,
+    refreshExpiresAt: Date,
     lastActiveAt: { type: Date, default: Date.now },
   }],
 }, {

@@ -19,18 +19,15 @@ export async function PUT(request, { params }) {
     );
   }
 
-  const updates = {};
-  if (body.isComingSoon !== undefined) {
-    updates.isComingSoon = body.isComingSoon;
+  if (body.isComingSoon !== undefined || body.expectedReleaseDate !== undefined) {
+    return Response.json({ success: false, message: "Scheduling is no longer available." }, { status: 400 });
   }
+  const updates = {};
   if (body.isTrending !== undefined) {
     updates.isTrending = body.isTrending;
   }
   if (body.isBlockbuster !== undefined) {
     updates.isBlockbuster = body.isBlockbuster;
-  }
-  if (body.expectedReleaseDate !== undefined) {
-    updates.expectedReleaseDate = body.expectedReleaseDate;
   }
 
   // Update base Content document

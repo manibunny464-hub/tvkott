@@ -1,0 +1,2393 @@
+{
+  "info": {
+    "name": "TVK OTT Mobile and TV API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Implemented repository contract for Android, iOS, and TV integration. Supported requests only. See TVK_Mobile_API_Handoff.md for gaps and staging requirements. Configure baseUrl and an authorized user token. No admin credentials, production secrets or placeholder endpoints are included."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "phone",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "otp",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "deviceId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "fcmToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "contentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "seasonId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "episodeId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "trailerId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "notificationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "languageId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "planId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "couponCode",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "razorpayOrderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "razorpayPaymentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "razorpaySignature",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "language",
+      "value": "Telugu",
+      "type": "string"
+    },
+    {
+      "key": "quality",
+      "value": "720p",
+      "type": "string"
+    },
+    {
+      "key": "subscriptionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tvPairingCode",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tvDeviceSecret",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tvSessionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "transactionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "commentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "trailerLanguage",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "commentCursor",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "App and authentication",
+      "item": [
+        {
+          "name": "App configuration",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/mobile/config",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "config"
+              ]
+            },
+            "description": "Public theme, branding, and feature toggles.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Send OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/send-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "send-otp"
+              ]
+            },
+            "description": "Required: phone (10 digits). Use an authorized test phone. This request can send an SMS.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{phone}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "verify-otp"
+              ]
+            },
+            "description": "Use a stable installation deviceId. Store token, refreshToken and user.id. A successful login at the plan limit clears older sessions.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"otp\": \"{{otp}}\",\n  \"deviceId\": \"{{deviceId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Sign out",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Requires the current user token."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Profile and languages",
+      "item": [
+        {
+          "name": "Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "profile"
+              ]
+            },
+            "description": "Returns the authenticated user profile."
+          },
+          "response": []
+        },
+        {
+          "name": "Update profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "profile"
+              ]
+            },
+            "description": "Send profile fields to update. Phone verification is separate and currently unavailable.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"TVK test viewer\",\n  \"yearOfBirth\": 1995,\n  \"gender\": \"other\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Available languages",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/languages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "languages"
+              ]
+            },
+            "description": "Language catalog. Use a returned language ID when saving preferences.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Content language preference",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/content-languages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "content-languages"
+              ]
+            },
+            "description": "Returns saved content languages."
+          },
+          "response": []
+        },
+        {
+          "name": "Set content language",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/content-languages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "content-languages"
+              ]
+            },
+            "description": "Required: languageIds. The TVK app sends an array containing one language ID.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"languageIds\": [\n    \"{{languageId}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Set app language",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/app-language",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "app-language"
+              ]
+            },
+            "description": "Required: language. Use the language code.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"language\": \"te\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Catalog and discovery",
+      "item": [
+        {
+          "name": "Home",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/home",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "home"
+              ]
+            },
+            "description": "Send the viewer token for personalization and history."
+          },
+          "response": []
+        },
+        {
+          "name": "Home banners",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/home/banner",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "home",
+                "banner"
+              ]
+            },
+            "description": "Requires a saved content language for relevant banners. Pass viewer token."
+          },
+          "response": []
+        },
+        {
+          "name": "Genres",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/genres",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "genres"
+              ]
+            },
+            "description": "Genre catalog.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List titles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/content",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "content"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number. Default 1.",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Page size. Use the endpoint-specific limit.",
+                  "disabled": true
+                },
+                {
+                  "key": "type",
+                  "value": "movie",
+                  "description": "movie or series",
+                  "disabled": true
+                },
+                {
+                  "key": "lang",
+                  "value": "{{language}}",
+                  "description": "Content language name",
+                  "disabled": true
+                },
+                {
+                  "key": "category",
+                  "value": "Drama",
+                  "description": "Category filter",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Use type for Movie or Series and lang for the language name. Omit optional filters for the general catalog. Page-based pagination."
+          },
+          "response": []
+        },
+        {
+          "name": "Trending",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/content/trending",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "content",
+                "trending"
+              ]
+            },
+            "description": "Trending catalog."
+          },
+          "response": []
+        },
+        {
+          "name": "Get title and recommendations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/content/{{contentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "content",
+                "{{contentId}}"
+              ]
+            },
+            "description": "Required path: contentId. For movies, the playback array contains published language and quality options subject to access. Read More Like This from the title response, not a separate related endpoint."
+          },
+          "response": []
+        },
+        {
+          "name": "Get series seasons and episodes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/content/{{contentId}}/seasons",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "content",
+                "{{contentId}}",
+                "seasons"
+              ]
+            },
+            "description": "Required path: series contentId. Season payload includes episode information and related series where configured."
+          },
+          "response": []
+        },
+        {
+          "name": "Get season episodes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/content/{{contentId}}/seasons/{{seasonId}}/episodes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "content",
+                "{{contentId}}",
+                "seasons",
+                "{{seasonId}}",
+                "episodes"
+              ]
+            },
+            "description": "Required path: contentId and seasonId."
+          },
+          "response": []
+        },
+        {
+          "name": "Search titles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/search?q=drama",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "drama",
+                  "description": "Text query"
+                }
+              ]
+            },
+            "description": "Use q for text search. An empty query returns suggestions/history."
+          },
+          "response": []
+        },
+        {
+          "name": "Search history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/search/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "search",
+                "history"
+              ]
+            },
+            "description": "Authenticated viewer search history."
+          },
+          "response": []
+        },
+        {
+          "name": "Clear search history",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/search/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "search",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": "History item ID",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Deletes viewer search history. id optionally selects one entry."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Playback and progress",
+      "item": [
+        {
+          "name": "Episode manifest",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/episodes/{{episodeId}}/manifest",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "episodes",
+                "{{episodeId}}",
+                "manifest"
+              ]
+            },
+            "description": "HLS manifest where available. Treat the response as playlist text. Requires entitlement for premium episodes."
+          },
+          "response": []
+        },
+        {
+          "name": "Resume series playback",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/home/continue-watching/play?contentId={{contentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "home",
+                "continue-watching",
+                "play"
+              ],
+              "query": [
+                {
+                  "key": "contentId",
+                  "value": "{{contentId}}",
+                  "description": "Series ID"
+                },
+                {
+                  "key": "episodeId",
+                  "value": "{{episodeId}}",
+                  "description": "Episode ID",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Required contentId is a series ID. episodeId can be omitted. For movies, use title detail playback."
+          },
+          "response": []
+        },
+        {
+          "name": "Continue watching",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/home/continue-watching",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "home",
+                "continue-watching"
+              ]
+            },
+            "description": "Returns the signed-in viewer in-progress titles."
+          },
+          "response": []
+        },
+        {
+          "name": "Save watch history entry",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/watch-history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "watch-history"
+              ]
+            },
+            "description": "Required: contentId, watchedSeconds and totalSeconds. Include episodeId for series. Omit episodeId for movies.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contentId\": \"{{contentId}}\",\n  \"episodeId\": \"{{episodeId}}\",\n  \"watchedSeconds\": 30,\n  \"totalSeconds\": 120\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Watch history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/watch-history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "watch-history"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number. Default 1.",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Page size. Use the endpoint-specific limit.",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Page-based watch history."
+          },
+          "response": []
+        },
+        {
+          "name": "Remove title from watch history",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/watch-history?contentId={{contentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "watch-history"
+              ],
+              "query": [
+                {
+                  "key": "contentId",
+                  "value": "{{contentId}}",
+                  "description": "Title ID"
+                }
+              ]
+            },
+            "description": "Required contentId identifies entries to remove."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Watchlist and download records",
+      "item": [
+        {
+          "name": "Watchlist",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/my-list",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "my-list"
+              ]
+            },
+            "description": "Returns the viewer watchlist."
+          },
+          "response": []
+        },
+        {
+          "name": "Add to watchlist",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/my-list",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "my-list"
+              ]
+            },
+            "description": "Send contentIds as an array. Use this shape for one or multiple titles.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contentIds\": [\n    \"{{contentId}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Remove from watchlist",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/my-list?contentId={{contentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "my-list"
+              ],
+              "query": [
+                {
+                  "key": "contentId",
+                  "value": "{{contentId}}",
+                  "description": "Title ID"
+                }
+              ]
+            },
+            "description": "Remove one title."
+          },
+          "response": []
+        },
+        {
+          "name": "List download records",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/downloads",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "downloads"
+              ]
+            },
+            "description": "Episode download records. This is not a media or license endpoint."
+          },
+          "response": []
+        },
+        {
+          "name": "Register episode download",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/downloads",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "downloads"
+              ]
+            },
+            "description": "Required: episodeId. language and quality identify the variant. Saves a download record; does not return downloadUrl or a license.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"episodeId\": \"{{episodeId}}\",\n  \"language\": \"{{language}}\",\n  \"quality\": \"{{quality}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get episode download records",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/downloads/{{episodeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "downloads",
+                "{{episodeId}}"
+              ]
+            },
+            "description": "Episode-specific download records."
+          },
+          "response": []
+        },
+        {
+          "name": "Remove episode download record",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/downloads/{{episodeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "downloads",
+                "{{episodeId}}"
+              ],
+              "query": [
+                {
+                  "key": "language",
+                  "value": "{{language}}",
+                  "description": "Language variant",
+                  "disabled": true
+                },
+                {
+                  "key": "quality",
+                  "value": "{{quality}}",
+                  "description": "Video quality",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Optionally target a language and quality."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Trailers",
+      "item": [
+        {
+          "name": "List trailers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/trailers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trailers"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number. Default 1.",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Page size. Use the endpoint-specific limit.",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Current public feed contains season trailers. Movie localized trailer information is available in the movie detail playback data when configured."
+          },
+          "response": []
+        },
+        {
+          "name": "Stream trailer",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/trailers/{{trailerId}}/stream",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trailers",
+                "{{trailerId}}",
+                "stream"
+              ]
+            },
+            "description": "Returns an expiring stream URL for a published series trailer."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Subscriptions and billing",
+      "item": [
+        {
+          "name": "Plans",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/subscription/plans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "subscription",
+                "plans"
+              ]
+            },
+            "description": "Available subscription plans.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "My subscription",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/subscription/my-subscription",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "subscription",
+                "my-subscription"
+              ]
+            },
+            "description": "Authenticated subscription status."
+          },
+          "response": []
+        },
+        {
+          "name": "Validate coupon",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/subscription/validate-coupon",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "subscription",
+                "validate-coupon"
+              ]
+            },
+            "description": "Use code for the coupon string.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{couponCode}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create checkout order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/subscription/create-order",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "subscription",
+                "create-order"
+              ]
+            },
+            "description": "Required planId. Test with Razorpay test credentials. Optional: couponCode, isRecurring, totalCycles.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": \"{{planId}}\",\n  \"isRecurring\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify order payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/subscription/verify-payment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "subscription",
+                "verify-payment"
+              ]
+            },
+            "description": "Send identifiers and signature from Razorpay. Subscription checkout uses razorpay_subscription_id in place of razorpay_order_id. transactionId can correlate the existing transaction.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"razorpay_order_id\": \"{{razorpayOrderId}}\",\n  \"razorpay_payment_id\": \"{{razorpayPaymentId}}\",\n  \"razorpay_signature\": \"{{razorpaySignature}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel subscription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/subscription/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "subscription",
+                "cancel"
+              ]
+            },
+            "description": "Required subscriptionId. Cancels the viewer subscription.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriptionId\": \"{{subscriptionId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "My transactions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/transactions?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "transactions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Viewer-only transaction history; page defaults to 1, limit to 20 (maximum 50)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get my transaction",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/transactions/{{transactionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "transactions",
+                "{{transactionId}}"
+              ]
+            },
+            "description": "Returns one transaction owned by the viewer."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Notifications, devices and support content",
+      "item": [
+        {
+          "name": "List notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number. Default 1.",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Page size. Use the endpoint-specific limit.",
+                  "disabled": true
+                },
+                {
+                  "key": "unreadOnly",
+                  "value": "true",
+                  "description": "Unread only",
+                  "disabled": true
+                },
+                {
+                  "key": "type",
+                  "value": "",
+                  "description": "Notification type",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "List notification records."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark notification read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/notifications/{{notificationId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "notifications",
+                "{{notificationId}}",
+                "read"
+              ]
+            },
+            "description": "Marks one notification as read."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark all notifications read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/notifications/read-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "notifications",
+                "read-all"
+              ]
+            },
+            "description": "Marks all notifications as read."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete notification",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/notifications/{{notificationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "notifications",
+                "{{notificationId}}"
+              ]
+            },
+            "description": "Deletes one notification."
+          },
+          "response": []
+        },
+        {
+          "name": "Clear notifications",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/notifications/clear-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "notifications",
+                "clear-all"
+              ]
+            },
+            "description": "Clears the viewer notifications."
+          },
+          "response": []
+        },
+        {
+          "name": "Register push token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/device-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "device-token"
+              ]
+            },
+            "description": "Required: deviceId and fcmToken. platform identifies Android or iOS. Optional deviceName and os. TV playback does not require a push token.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"fcmToken\": \"{{fcmToken}}\",\n  \"platform\": \"android\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Unregister push token",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/device-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "device-token"
+              ]
+            },
+            "description": "Required deviceId."
+          },
+          "response": []
+        },
+        {
+          "name": "Help",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cms/help",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cms",
+                "help"
+              ]
+            },
+            "description": "Public CMS content.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Privacy policy",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cms/privacy",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cms",
+                "privacy"
+              ]
+            },
+            "description": "Public CMS content.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "About",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cms/about",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cms",
+                "about"
+              ]
+            },
+            "description": "Public CMS content.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create support ticket",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/support/tickets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "support",
+                "tickets"
+              ]
+            },
+            "description": "Submit a plain-text subject (1–120 characters) and message (1–2,000 characters). Returns ticketId and status.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subject\": \"Playback assistance\",\n  \"message\": \"Please help with this playback issue.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "TV pairing and sessions",
+      "item": [
+        {
+          "name": "TV configuration",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tv/config",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tv",
+                "config"
+              ]
+            },
+            "description": "Public availability and pairing code lifetime.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Start TV pairing",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tv/pairing/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tv",
+                "pairing",
+                "start"
+              ]
+            },
+            "description": "TV shows code to the viewer. Store deviceSecret privately on the TV; share only the code with the mobile app.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceName\": \"Living Room TV\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Approve TV code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tv/pairing/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tv",
+                "pairing",
+                "approve"
+              ]
+            },
+            "description": "Use the signed-in mobile viewer bearer token. Confirm only a code shown on a TV the viewer controls.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{tvPairingCode}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Poll TV pairing",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tv/pairing/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "tv",
+                "pairing",
+                "status"
+              ]
+            },
+            "description": "Poll with the code and TV-only deviceSecret at the start response interval. On active, securely store token as the TV bearer token. Use it for catalog/playback and logout. Completed codes cannot be replayed.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{tvPairingCode}}\",\n  \"deviceSecret\": \"{{tvDeviceSecret}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List my TV sessions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/tv-sessions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "tv-sessions"
+              ]
+            },
+            "description": "Returns only unexpired TV sessions owned by the current viewer."
+          },
+          "response": []
+        },
+        {
+          "name": "Revoke TV session",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/tv-sessions?sessionId={{tvSessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "tv-sessions"
+              ],
+              "query": [
+                {
+                  "key": "sessionId",
+                  "value": "{{tvSessionId}}",
+                  "description": "TV session ID from list."
+                }
+              ]
+            },
+            "description": "Required sessionId. Revocation takes effect for subsequent authenticated requests."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Session refresh and trailer engagement",
+      "item": [
+        {
+          "name": "Refresh and rotate mobile token",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "Use the latest refresh token and replace both tokens returned. A 401 DEVICE_LOGOUT requires a fresh OTP login.",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"userId\": \"{{userId}}\", \"refreshToken\": \"{{refreshToken}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get trailer engagement",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/trailers/{{trailerId}}/engagement",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trailers",
+                "{{trailerId}}",
+                "engagement"
+              ],
+              "query": [
+                {
+                  "key": "language",
+                  "value": "{{trailerLanguage}}",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Pass a season trailer ID, or a movie ID with the language query enabled. Sends liked, switches, and likesCount when visible."
+          },
+          "response": []
+        },
+        {
+          "name": "Like trailer",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/trailers/{{trailerId}}/like",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trailers",
+                "{{trailerId}}",
+                "like"
+              ],
+              "query": [
+                {
+                  "key": "language",
+                  "value": "{{trailerLanguage}}",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Idempotent for the current user."
+          },
+          "response": []
+        },
+        {
+          "name": "Unlike trailer",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/trailers/{{trailerId}}/like",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trailers",
+                "{{trailerId}}",
+                "like"
+              ],
+              "query": [
+                {
+                  "key": "language",
+                  "value": "{{trailerLanguage}}",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Idempotent for the current user."
+          },
+          "response": []
+        },
+        {
+          "name": "List trailer comments",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/trailers/{{trailerId}}/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trailers",
+                "{{trailerId}}",
+                "comments"
+              ],
+              "query": [
+                {
+                  "key": "language",
+                  "value": "{{trailerLanguage}}",
+                  "disabled": true
+                },
+                {
+                  "key": "before",
+                  "value": "{{commentCursor}}",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Use nextCursor as before to load older comments."
+          },
+          "response": []
+        },
+        {
+          "name": "Add trailer comment",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/trailers/{{trailerId}}/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trailers",
+                "{{trailerId}}",
+                "comments"
+              ],
+              "query": [
+                {
+                  "key": "language",
+                  "value": "{{trailerLanguage}}",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Plain text, 1–1000 characters.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"text\": \"Looking forward to this!\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete own trailer comment",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/trailers/{{trailerId}}/comments?commentId={{commentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "trailers",
+                "{{trailerId}}",
+                "comments"
+              ],
+              "query": [
+                {
+                  "key": "language",
+                  "value": "{{trailerLanguage}}",
+                  "disabled": true
+                },
+                {
+                  "key": "commentId",
+                  "value": "{{commentId}}",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Only the author can delete using this endpoint."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

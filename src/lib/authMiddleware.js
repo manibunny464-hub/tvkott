@@ -1,3 +1,4 @@
+import { checkTvSession } from '@/lib/tv-pairing';
 import { verifyToken } from '@/lib/jwt';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
@@ -41,6 +42,11 @@ export async function requireAuth(request, { allowLegacyHeaders = false } = {}) 
     };
   }
 
+  if (decoded.tvSessionId && !(await checkTvSession(decoded))) {
+    return { success: false, user: null, message: 'TV session expired or revoked',
+      error: Response.json({ success: false, message: 'TV session expired or revoked' }, { status: 401 }) };
+  }
+
   let userId = decoded.userId || decoded.adminId;
   if (userId && !/^[0-9a-fA-F]{24}$/.test(userId)) {
     userId = '000000000000000000000000';
@@ -67,8 +73,8 @@ export async function requireAuth(request, { allowLegacyHeaders = false } = {}) 
     if (decoded.deviceId) {
       const activeDevices = Array.isArray(dbUser.activeDevices) ? dbUser.activeDevices : [];
       const hasActiveSession = activeDevices.length > 0
-        ? activeDevices.some(d => d && d.deviceId === decoded.deviceId)
-        : (!dbUser.currentDeviceId || dbUser.currentDeviceId === decoded.deviceId);
+        ? activeDevices.some(d => d?.deviceId === decoded.deviceId && (d.sessionId || null) === (decoded.sessionId || null))
+        : (!decoded.sessionId && dbUser.currentDeviceId === decoded.deviceId);
 
       if (!hasActiveSession) {
         const errorResponse = Response.json(

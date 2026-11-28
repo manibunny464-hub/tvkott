@@ -1,5 +1,3 @@
-import { GET as getComingSoon } from '../../coming-soon/route';
-
-export async function GET(request) {
-  return getComingSoon(request);
+export async function GET() {
+  return Response.json({ success: true, comingSoon: [] });
 }

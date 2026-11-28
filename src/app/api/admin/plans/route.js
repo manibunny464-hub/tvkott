@@ -6,6 +6,8 @@ import SubscriptionPlan from '@/models/SubscriptionPlan';
 import Transaction from '@/models/Transaction';
 import { getOrCreateRazorpayPlan } from '@/lib/subscription/razorpayService';
 
+import { validatePlanFeatures } from '@/lib/subscription/featureValidator';
+
 async function listPlans() {
   await dbConnect();
   const [plans, subscriberRows, revenueRows] = await Promise.all([
@@ -66,6 +68,7 @@ export async function POST(request) {
       tagline: body.tagline || '',
       isActive: body.isActive ?? true,
       autoRenew: body.autoRenew ?? true,
+      features: validatePlanFeatures(body.features),
       razorpayPlanId: body.razorpayPlanId || '',
       displayOrder: Number(body.displayOrder || 0),
     });
@@ -112,6 +115,10 @@ export async function PUT(request) {
       autoRenew: body.autoRenew ?? true,
       displayOrder: Number(body.displayOrder || 0),
     };
+
+    if (body.features !== undefined) {
+      updateFields.features = validatePlanFeatures({ ...existingPlan.toObject().features, ...body.features });
+    }
 
     if (body.razorpayPlanId !== undefined) {
       updateFields.razorpayPlanId = body.razorpayPlanId;

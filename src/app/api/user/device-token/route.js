@@ -14,11 +14,19 @@ export async function POST(request) {
   const body = await request.json();
   const { deviceId, fcmToken, platform = 'web', deviceName, os, ipAddress } = body;
 
-  if (!deviceId) {
+  if (auth.user.tvSessionId || !auth.user.deviceId || deviceId !== auth.user.deviceId) {
     return Response.json({ success: false, message: 'deviceId is required' }, { status: 400 });
   }
 
+  if (fcmToken !== undefined && (typeof fcmToken !== 'string' || !fcmToken.trim() || fcmToken.length > 4096)) {
+    return Response.json({ success: false, message: 'Invalid push token' }, { status: 400 });
+  }
+
   await dbConnect();
+  if (fcmToken) await Device.updateMany(
+    { fcmToken, $or: [{ userId: { $ne: userId } }, { deviceId: { $ne: deviceId } }] },
+    { $set: { fcmToken: null, isPushActive: false } },
+  );
 
   const updateFields = {
     userId,
@@ -33,7 +41,7 @@ export async function POST(request) {
   if (ipAddress) updateFields.ipAddress = ipAddress;
   if (fcmToken) updateFields.isPushActive = true;
 
-  const device = await Device.findOneAndUpdate(
+  await Device.findOneAndUpdate(
     { userId, deviceId },
     { $set: updateFields },
     { upsert: true, new: true, runValidators: true }
@@ -42,7 +50,7 @@ export async function POST(request) {
   return Response.json({
     success: true,
     message: 'Device token registered successfully',
-    device,
+
   });
 }
 
@@ -51,23 +59,12 @@ export async function DELETE(request) {
   if (!auth.success) return authError(auth);
 
   const userId = auth.user.userId || auth.user.id;
-  const { searchParams } = new URL(request.url);
-  const deviceId = searchParams.get('deviceId');
-
-  await dbConnect();
-
-  if (deviceId) {
-    await Device.findOneAndUpdate(
-      { userId, deviceId },
-      { $set: { fcmToken: null, isPushActive: false } }
-    );
-  } else {
-    // Unset all device tokens for user on logout
-    await Device.updateMany(
-      { userId },
-      { $set: { fcmToken: null, isPushActive: false } }
-    );
+  const deviceId = auth.user.deviceId;
+  if (!deviceId || auth.user.tvSessionId) {
+    return Response.json({ success: false, message: 'Device session required' }, { status: 403 });
   }
+  await dbConnect();
+  await Device.updateOne({ userId, deviceId }, { $set: { fcmToken: null, isPushActive: false } });
 
   return Response.json({
     success: true,

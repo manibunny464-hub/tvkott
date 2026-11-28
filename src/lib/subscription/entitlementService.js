@@ -1,6 +1,7 @@
 import dbConnect from '../db.js';
 import Subscription from '../../models/Subscription.js';
 import SubscriptionPlan from '../../models/SubscriptionPlan.js';
+import Device from '../../models/Device.js';
 import User from '../../models/User.js';
 import Download from '../../models/Download.js';
 import {
@@ -149,58 +150,32 @@ export async function checkMonthlyDownloadQuota(userId, monthlyLimit = 0) {
   };
 }
 
-/**
- * Enforces simultaneous device limit on user sessions.
- */
-export async function enforceDeviceSession(userId, deviceId, deviceName = '', maxDevices = 1) {
-  if (!userId || !deviceId) {
-    return { success: false, message: 'userId and deviceId required' };
-  }
-
-  await dbConnect({ skipMaintenance: true });
-  const user = await User.findById(userId).select('activeDevices currentDeviceId');
-  if (!user) {
-    return { success: false, message: 'User not found' };
-  }
-
+export async function enforceDeviceSession(userId, deviceId, deviceName, maxDevices, sessionId, refresh = {}) {
+  await dbConnect();
   const now = new Date();
-  let devices = Array.isArray(user.activeDevices) ? user.activeDevices : [];
-
-  // Prune sessions inactive for more than 30 days
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  devices = devices.filter((d) => d && d.lastActiveAt && new Date(d.lastActiveAt) > thirtyDaysAgo);
-
-  const existingIndex = devices.findIndex((d) => d.deviceId === deviceId);
-
-  if (existingIndex > -1) {
-    // Device already active: update lastActiveAt timestamp
-    devices[existingIndex].lastActiveAt = now;
-    if (deviceName) devices[existingIndex].deviceName = deviceName;
-  } else {
-    // New device login: enforce max limit
-    const allowedLimit = Math.max(1, maxDevices);
-
-    while (devices.length >= allowedLimit) {
-      // Evict oldest device
-      devices.sort((a, b) => new Date(a.lastActiveAt) - new Date(b.lastActiveAt));
-      devices.shift();
-    }
-
-    devices.push({
-      deviceId,
-      deviceName: deviceName || 'Device',
-      lastActiveAt: now,
-    });
+  const cutoff = new Date(now.getTime() - 30 * 86400000);
+  const updated = await User.findOneAndUpdate({ _id: userId }, [
+    { $set: { activeDevices: { $filter: {
+      input: { $ifNull: ['$activeDevices', []] },
+      as: 'device',
+      cond: { $gt: ['$$device.lastActiveAt', cutoff] },
+    } } } },
+    { $set: { activeDevices: { $let: {
+      vars: { other: { $filter: {
+        input: '$activeDevices', as: 'device',
+        cond: { $ne: ['$$device.deviceId', { $literal: deviceId }] },
+      } } },
+      in: { $concatArrays: [
+        { $cond: [{ $gte: [{ $size: '$$other' }, maxDevices] }, [], '$$other'] },
+        { $literal: [{ deviceId, deviceName, sessionId, lastActiveAt: now, ...refresh }] },
+      ] },
+    } }, currentDeviceId: { $literal: deviceId } } },
+  ], { updatePipeline: true, new: true, projection: { activeDevices: 1 } }).lean();
+  if (updated) {
+    await Device.updateMany(
+      { userId, deviceId: { $nin: updated.activeDevices.map(device => device.deviceId) }, updatedAt: { $lte: now } },
+      { $set: { fcmToken: null, isPushActive: false } },
+    ).catch(error => console.error('[Device session] Push registration cleanup failed:', error.code || error.name));
   }
-
-  await User.updateOne({ _id: userId }, {
-    $set: { activeDevices: devices, currentDeviceId: deviceId },
-  });
-
-  return {
-    success: true,
-    activeDevicesCount: devices.length,
-    maxDevices,
-    activeDevices: devices,
-  };
+  return { success: Boolean(updated) };
 }

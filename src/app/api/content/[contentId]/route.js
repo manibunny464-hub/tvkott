@@ -1,3 +1,4 @@
+import { checkTvSession } from '@/lib/tv-pairing';
 import { seasonTrailersByLanguage } from '@/lib/season-trailer-selection';
 import { publishedMovieLanguages } from '@/lib/admin/movie-media';
 import { recommendationCards } from '@/lib/more-like-this';
@@ -60,6 +61,9 @@ function cleanContent(content) {
     movieIds,        // eslint-disable-line no-unused-vars
     ...rest
   } = content;
+  delete rest.isComingSoon;
+  delete rest.expectedReleaseDate;
+  delete rest.scheduledPublishAt;
   return rest;
 }
 
@@ -128,6 +132,9 @@ export async function GET(request, { params }) {
     let isAdded = false;
     let isUserPremium = false;
     const resolvedUser = resolveUser(request);
+    if (resolvedUser?.tvSessionId && !(await checkTvSession(resolvedUser))) {
+      return Response.json({ success: false, message: 'TV session expired or revoked' }, { status: 401 });
+    }
     if (resolvedUser && resolvedUser.userId) {
       const dbUser = await User.findById(resolvedUser.userId, { myList: 1, isPremium: 1, premiumExpiry: 1 }).lean();
       if (dbUser) {

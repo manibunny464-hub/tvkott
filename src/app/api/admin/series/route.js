@@ -102,8 +102,10 @@ export async function POST(request) {
     applyPrimaryLanguage(data, localized);
     const payload = await buildContentPayload({ data, formData, type: 'series' });
     applyLanguageDraft(payload, localized);
-    if (localized.selectedLanguageCodes) payload.isComingSoon = false;
-    delete payload.videoSource;
+
+    delete payload.isComingSoon;
+  delete payload.expectedReleaseDate;
+  delete payload.videoSource;
     delete payload.videoUrl;
     delete payload.rating;
 

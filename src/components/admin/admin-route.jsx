@@ -5,6 +5,7 @@ import { getDashboardData, getMasterSettings } from '@/lib/admin/data';
 
 export default async function AdminRoutePage({ view = 'dashboard', movieId = null, bannerId = null, seriesEditorId = null, studioSection = "details" }) {
   const admin = await requireAdminPage();
+  if (view === 'tv-settings' && admin.role !== 'super_admin') notFound();
   if (view === 'banner-editor' && !['super_admin', 'editor'].includes(admin.role)) notFound();
   if (view === 'movie-editor' && !movieId && !['super_admin', 'editor'].includes(admin.role)) notFound();
   if (view === 'trailers-admin' && !(await hasPermission(admin, 'trailers'))) notFound();

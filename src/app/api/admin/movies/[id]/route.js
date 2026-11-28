@@ -133,7 +133,7 @@ export async function PUT(request, { params }) {
   applyLanguageDraft(payload, localized, existingLocalization);
   delete payload.isActive;
   if (recommendations.ids) payload.movieIds = recommendations.ids;
-  for (const field of ['ageRating', 'trailerUrl', 'cast', 'director', 'musicDirector', 'producer', 'freeEpisodeCount', 'isComingSoon']) {
+  for (const field of ['ageRating', 'trailerUrl', 'cast', 'director', 'musicDirector', 'producer', 'freeEpisodeCount']) {
     if (data[field] === undefined) delete payload[field];
   }
   if (data.videoUrl === undefined && !payload.videoSource) {
@@ -142,6 +142,8 @@ export async function PUT(request, { params }) {
     delete payload.transcodingStatus;
     delete payload.renditions;
   }
+  delete payload.isComingSoon;
+  delete payload.expectedReleaseDate;
   const movie = await Content.findOneAndUpdate(
     { _id: id, type: 'movie', isDeleted: { $ne: true } },
     { $set: payload },

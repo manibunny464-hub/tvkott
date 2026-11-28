@@ -1,3 +1,4 @@
+import { checkTvSession } from '@/lib/tv-pairing';
 import { verifyToken } from './jwt';
 import dbConnect from './db';
 import User from '../models/User';
@@ -37,7 +38,7 @@ export async function getUserPreferredLanguages(request, { activeOnly = false } 
     if (!token) return [];
 
     const decoded = verifyToken(token);
-    if (!decoded) return [];
+    if (!decoded || (decoded.tvSessionId && !(await checkTvSession(decoded)))) return [];
 
     const userId = decoded.userId || decoded.adminId;
     if (!userId || !/^[0-9a-fA-F]{24}$/.test(userId)) return [];
