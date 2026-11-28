@@ -31,10 +31,11 @@ async function fetchTrending(preferredLangs = []) {
       genres: 1,
       type: 1,
       trendingPriority: 1,
+      trendingRank: 1,
       color: 1,
     },
   )
-    .sort({ trendingPriority: 1 })
+    .sort({ trendingRank: 1, trendingPriority: 1, _id: 1 })
     .limit(10)
     .lean();
 }

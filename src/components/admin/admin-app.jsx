@@ -17533,29 +17533,32 @@ function TrendingView({
   const [open, setOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [contents, setContents] = useState([]);
+  const [catalogSearch, setCatalogSearch] = useState("");
   const [loadingContents, setLoadingContents] = useState(false);
   const [form, setForm] = useState({ contentId: "", rank: "1" });
   const [submitting, setSubmitting] = useState(false);
 
   const trendingItems = data?.trending || [];
 
-  async function loadContents() {
-    setLoadingContents(true);
-    try {
-      const res = await apiFetch("/api/admin/videos?limit=100");
-      setContents(res.videos || []);
-    } catch (err) {
-      notify(err.message, "error");
-    } finally {
-      setLoadingContents(false);
-    }
-  }
-
   useEffect(() => {
-    if (open) {
-      loadContents();
-    }
-  }, [open]);
+    if (!open || editingItem) return;
+    const controller = new AbortController();
+    setLoadingContents(true);
+    const timer = setTimeout(async () => {
+      try {
+        const query = new URLSearchParams({ catalog: "1", search: catalogSearch });
+        const response = await fetch(`/api/admin/trending?${query}`, { signal: controller.signal, cache: "no-store" });
+        const result = await readJsonResponse(response);
+        if (!response.ok || !result.success) throw new Error(result.message || "Could not load titles.");
+        setContents(result.titles || []);
+      } catch (err) {
+        if (!controller.signal.aborted) notify(err.message, "error");
+      } finally {
+        if (!controller.signal.aborted) setLoadingContents(false);
+      }
+    }, 250);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [open, editingItem, catalogSearch]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -17639,6 +17642,11 @@ function TrendingView({
                 <span className="text-xs font-bold uppercase tracking-wider text-[var(--admin-muted)] block">
                   Select Content / Title <span className="text-red-500">*</span>
                 </span>
+                {!editingItem && <Input aria-label="Search published titles" placeholder="Search movies or series"
+                  value={catalogSearch} onChange={(event) => {
+                    setCatalogSearch(event.target.value);
+                    setForm(current => ({ ...current, contentId: "" }));
+                  }} />}
                 {editingItem ? (
                   <div className="p-3 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-soft)]/50 text-sm font-bold text-[var(--admin-foreground)]">
                     {editingItem.content?.title || "Selected Content"}
@@ -17657,7 +17665,7 @@ function TrendingView({
                     required
                     className="bg-[var(--admin-surface)] text-[var(--admin-foreground)] h-11 text-sm"
                   >
-                    <option value="">-- Choose Video/Series --</option>
+                    <option value="">Choose a published title</option>
                     {contents.map((content) => (
                       <option
                         key={content._id || content.id}

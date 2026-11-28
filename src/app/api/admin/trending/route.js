@@ -11,6 +11,21 @@ export async function GET(request) {
   const { page, limit, skip } = parsePagination(request);
   await dbConnect();
 
+  const query = new URL(request.url).searchParams;
+  if (query.get('catalog') === '1') {
+    const search = query.get('search')?.trim().slice(0, 100);
+    const escaped = search?.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+    const title = escaped ? { $regex: escaped, $options: 'i' } : undefined;
+    const titles = await Content.find({
+      type: { $in: ['movie', 'series', 'short'] },
+      isActive: true,
+      isDeleted: { $ne: true },
+      isComingSoon: { $ne: true },
+      ...(title ? { $or: [{ title }, { 'localizations.title': title }] } : {}),
+    }).select('title type').sort({ type: 1, title: 1, _id: 1 }).limit(100).lean();
+    return Response.json({ success: true, titles });
+  }
+
   // Self-heal/sync Content documents marked as isTrending: true
   const trendingContents = await Content.find({ isTrending: true, isDeleted: { $ne: true } }).lean();
   for (const content of trendingContents) {
