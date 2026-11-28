@@ -30,9 +30,9 @@ export async function POST(request) {
       );
     }
 
-    // Cryptographically secure random 4-digit code if no DEFAULT_OTP
-    const devOtp = process.env.NODE_ENV === "development" ? process.env.DEFAULT_OTP : undefined;
-    const otp = devOtp || String(crypto.randomInt(1000, 10000));
+    const otp = process.env.NODE_ENV === "development"
+      ? process.env.DEFAULT_OTP?.trim() || '1234'
+      : String(crypto.randomInt(1000, 10000));
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
     await Otp.create({ phone, otp, expiresAt });

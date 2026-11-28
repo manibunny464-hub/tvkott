@@ -17021,7 +17021,7 @@ function TrailerEngagementFields({ state, onChange, disabled }) {
   </div>;
 }
 
-function TrailerEngagement({ id, language }) {
+function TrailerEngagement({ id, language, notify }) {
   const endpoint = `/api/admin/trailers/${id}/engagement${language ? `?language=${encodeURIComponent(language)}` : ""}`;
   const [state, setState] = useState(null);
   const [error, setError] = useState("");
@@ -17045,7 +17045,14 @@ function TrailerEngagement({ id, language }) {
   async function run(work) {
     setBusy(true);
     setError("");
-    try { await work(); } catch (err) { setError(err.message); } finally { setBusy(false); }
+    try {
+      await work();
+    } catch (err) {
+      setError(err.message);
+      notify?.(err.message, "error");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function save(body) {
@@ -17053,6 +17060,8 @@ function TrailerEngagement({ id, language }) {
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     }));
     if (!result.success) throw new Error(result.message);
+    const messages = { hide: "Comment hidden", restore: "Comment restored", delete: "Comment deleted" };
+    notify?.(messages[body.action] || "Trailer settings saved");
     await load();
   }
 
@@ -17067,8 +17076,10 @@ function TrailerEngagement({ id, language }) {
         <p className="break-words">{comment.text}</p>
         <div className="flex gap-2">
           <Button type="button" variant="outline" disabled={busy} onClick={() => run(() => save({ commentId: comment._id, action: comment.hidden ? "restore" : "hide" }))}>{comment.hidden ? "Restore" : "Hide"}</Button>
-          <Button type="button" variant="outline" disabled={busy} onClick={() => {
-            if (window.confirm("Permanently delete this comment?")) run(() => save({ commentId: comment._id, action: "delete" }));
+          <Button type="button" variant="outline" disabled={busy} onClick={async () => {
+            if (await showConfirm("Delete comment?", "This comment will be permanently deleted.", "Delete comment")) {
+              await run(() => save({ commentId: comment._id, action: "delete" }));
+            }
           }}>Delete</Button>
         </div>
       </div>)}
@@ -17094,7 +17105,7 @@ function MovieTrailerEditor({ movie, row, onSaved, notify }) {
   }
 
   async function save(remove) {
-    if (remove && !window.confirm("Remove the saved trailer for this language?")) return;
+    if (remove && !(await showConfirm("Remove trailer?", "This removes the saved trailer for the selected language.", "Remove trailer"))) return;
     setSaving(true);
     setError("");
     try {
@@ -17119,6 +17130,7 @@ function MovieTrailerEditor({ movie, row, onSaved, notify }) {
       notify?.(remove ? "Trailer removed" : "Trailer saved");
     } catch (err) {
       setError(err.message);
+      notify?.(err.message, "error");
     } finally {
       setSaving(false);
     }
@@ -17130,14 +17142,16 @@ function MovieTrailerEditor({ movie, row, onSaved, notify }) {
         onChange={(event) => { setFile(event.target.files[0] ?? null); setUploaded(null); setUploadPercent(null); setError(""); }} />
     </label>
     {saving && uploadPercent !== null && <VideoUploadProgress percent={uploadPercent} label={uploadPercent === 100 ? "Saving trailer" : "Uploading"} />}
-    {url && <video controls playsInline preload="metadata" className="aspect-video max-h-60 rounded-lg bg-black" src={url} />}
+    {url && <video key={url} controls playsInline preload="metadata" className="aspect-video w-full max-h-60 rounded-lg bg-black"
+      src={`/api/admin/trailers/${movie._id}/preview?language=${encodeURIComponent(row.language)}&revision=${encodeURIComponent(url)}`}
+      onError={() => setError("The trailer is saved, but the preview could not load. Reload the page and try again.")} />}
     {error && <p role="alert" className="tvk-validation text-sm">{error}</p>}
     <div className="flex flex-wrap gap-2">
       <Button type="button" disabled={!file || saving} onClick={() => save(false)}>{saving ? "Saving…" : "Save trailer"}</Button>
       {file && <Button type="button" variant="outline" disabled={saving} onClick={clearFile}>Remove selected file</Button>}
       {url && <Button type="button" variant="outline" disabled={saving} onClick={() => save(true)}>Remove saved trailer</Button>}
     </div>
-    <TrailerEngagement id={movie._id} language={row.language} />
+    <TrailerEngagement id={movie._id} language={row.language} notify={notify} />
     {movie.isActive && <p className="text-sm text-[var(--admin-muted)]">Publish this language in Movie Studio to apply trailer changes to the live movie.</p>}
   </section>;
 }
@@ -17183,7 +17197,7 @@ function SeasonTrailerEditor({ seriesId, seasonId, language, name, disabled, not
   }, [seriesId, seasonId, language]);
 
   async function change(remove = false) {
-    if (remove && !window.confirm(`Delete the ${name} trailer for this season?`)) return;
+    if (remove && !(await showConfirm("Remove season trailer?", `This removes the ${name} trailer for this season.`, "Remove trailer"))) return;
     setSaving(true);
     setError("");
     try {
@@ -17203,6 +17217,7 @@ function SeasonTrailerEditor({ seriesId, seasonId, language, name, disabled, not
       notify?.(remove ? "Trailer deleted" : `${name} trailer saved`);
     } catch (err) {
       setError(err.message);
+      notify?.(err.message, "error");
     } finally {
       setSaving(false);
     }
@@ -17212,7 +17227,7 @@ function SeasonTrailerEditor({ seriesId, seasonId, language, name, disabled, not
 
   return <div className="space-y-3 rounded-lg border border-[var(--admin-border)] p-4">
     {error && <p role="alert" className="tvk-validation text-sm">{error}</p>}
-    <VideoUploadField key={uploadVersion} label={`${name} trailer video`} currentUrl={pending?.url || trailer?.videoUrl}
+    <VideoUploadField key={uploadVersion} label={`${name} trailer video`} currentUrl={pending?.url || (trailer?.videoUrl ? `/api/admin/trailers/${trailer._id}/preview?revision=${encodeURIComponent(trailer.updatedAt || "")}` : null)}
       disabled={disabled || saving} onFileChange={setPending}
       onDirectUpload={async (file, progress) => {
         if (!["video/mp4", "video/webm"].includes(file.type)) throw new Error("Choose an MP4 or WebM trailer.");
@@ -17232,7 +17247,7 @@ function SeasonTrailerEditor({ seriesId, seasonId, language, name, disabled, not
         onClick={() => { setPending(null); setUploadVersion((version) => version + 1); }}>Remove selected file</Button>}
       {trailer && <Button type="button" variant="outline" disabled={disabled || saving || uploading} onClick={() => change(true)}>Remove saved trailer</Button>}
     </div>
-    {trailer ? <TrailerEngagement id={trailer._id} /> : <section className="space-y-3 border-t border-[var(--admin-border)] pt-4">
+    {trailer ? <TrailerEngagement id={trailer._id} notify={notify} /> : <section className="space-y-3 border-t border-[var(--admin-border)] pt-4">
       <h4 className="font-semibold">Trailer settings</h4>
       <TrailerEngagementFields state={engagement} onChange={setEngagement} disabled={disabled || saving} />
       <p className="text-sm text-[var(--admin-muted)]">These settings are saved with the trailer.</p>
